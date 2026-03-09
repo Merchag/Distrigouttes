@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distrigouttes  Journal de Projet</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="logo">Journal <span>Projet</span></div>
+    <div class="topbar-proj" id="topProjName">Distrigouttes</div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-stat"><div class="dot"></div><span id="topEntriesCount">0 note</span></div>
+    <button class="btn-settings" onclick="openSettings()" title="Parametres">&#9881;</button>
+  </div>
+
+  <div class="tabs" id="tabsBar">
+    <div class="tab-indicator" id="tabIndicator"></div>
+    <button class="tab active" id="tab-pres" onclick="switchTab('pres',this)">
+      <span class="tab-icon">&#128193;</span> Presentation
+    </button>
+    <button class="tab" id="tab-journal" onclick="switchTab('journal',this)">
+      <span class="tab-icon">&#128211;</span> Journal
+    </button>
+    <button class="tab" id="tab-docs" onclick="switchTab('docs',this)">
+      <span class="tab-icon">&#128193;</span> Documents
+    </button>
+  </div>
+
+  <div class="content">
+
+    <!-- PRESENTATION (onglet 1) -->
+    <div class="tab-panel active pres-panel" id="panel-pres">
+      <div class="pres-grid">
+        <div class="pres-card full" style="animation-delay:.04s">
+          <h3>Presentation du projet</h3>
+          <div class="pres-title-display" id="presTitle">Distrigouttes</div>
+          <div class="pres-desc-display" id="presDesc">Decris ton projet ici</div>
+          <button class="pres-edit-btn" onclick="openPresEdit()">&#10002; Modifier la presentation</button>
+        </div>
+        <div class="pres-card" style="animation-delay:.1s">
+          <h3>Statistiques</h3>
+          <div class="stat-grid">
+            <div class="stat-item"><span class="sv" id="s-entries">0</span><span class="sl">Notes</span></div>
+            <div class="stat-item"><span class="sv" id="s-days">0</span><span class="sl">Jours</span></div>
+            <div class="stat-item"><span class="sv" id="s-last">&#8212;</span><span class="sl">Derniere</span></div>
+          </div>
+        </div>
+        <div class="pres-card" style="animation-delay:.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+          <h3>Avancement global</h3>
+          <div class="progress-display">
+            <div class="arc-wrap">
+              <svg viewBox="0 0 100 100">
+                <circle class="arc-bg" cx="50" cy="50" r="40"/>
+                <circle class="arc-fg" id="arcFg" cx="50" cy="50" r="40" stroke-dasharray="0 251.2"/>
+              </svg>
+              <div class="arc-label" id="arcLabel">0%</div>
+            </div>
+            <div class="progress-sub">moyenne des entrees</div>
+          </div>
+        </div>
+        <div class="pres-card full" style="animation-delay:.2s">
+          <h3>Repartition des notes</h3>
+          <div class="tag-breakdown" id="tagBreakdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL (onglet 2) -->
+    <div class="tab-panel journal-panel" id="panel-journal">
+      <div class="journal-toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input class="search-input" type="text" id="searchInput" placeholder="Rechercher dans le journal" oninput="renderJournal()">
+        </div>
+        <div class="filters">
+          <button class="fchip active" onclick="setFilter('all',this)">Tout</button>
+          <button class="fchip" onclick="setFilter('avancement',this)">Avancement</button>
+          <button class="fchip" onclick="setFilter('code',this)">Code</button>
+          <button class="fchip" onclick="setFilter('probleme',this)">Probleme</button>
+          <button class="fchip" onclick="setFilter('reflexion',this)">Reflexion</button>
+        </div>
+      </div>
+      <div class="entries-scroll" id="entriesScroll"></div>
+    </div>
+
+    <!-- DOCUMENTS (onglet 3) -->
+    <div class="tab-panel docs-panel" id="panel-docs">
+      <div class="docs-panel-header">
+        <div>
+          <div class="docs-panel-title">Documents &amp; Fichiers</div>
+          <div class="docs-panel-sub" id="docsCount">0 document</div>
+        </div>
+        <button class="btn-add-doc" onclick="openDocModal()">+ Ajouter un document</button>
+      </div>
+      <div class="doc-type-filters" id="docTypeFilters">
+        <button class="fchip active" onclick="setDocFilter('all',this)">Tout</button>
+        <button class="fchip" onclick="setDocFilter('pdf',this)">PDF</button>
+        <button class="fchip" onclick="setDocFilter('code',this)">Code</button>
+        <button class="fchip" onclick="setDocFilter('pptx',this)">Presentation</button>
+        <button class="fchip" onclick="setDocFilter('image',this)">Image</button>
+        <button class="fchip" onclick="setDocFilter('doc',this)">Word</button>
+        <button class="fchip" onclick="setDocFilter('link',this)">Lien</button>
+        <button class="fchip" onclick="setDocFilter('autre',this)">Autre</button>
+      </div>
+      <div class="docs-grid-full" id="docsGridFull" style="display:none"></div>
+      <div class="docs-empty-full" id="docsEmptyFull">
+        <div class="empty-icon">&#128193;</div>
+        <p>Aucun document ajoute pour l'instant.<br>Clique sur <strong>+ Ajouter un document</strong> pour commencer.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<button class="fab" id="fab" onclick="openEntryModal()" title="Nouvelle note (Ctrl+N)" style="display:none">+</button>
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: ENTRY -->
+<div class="overlay" id="entryOverlay">
+  <div class="modal">
+    <div class="modal-header"><h2 id="entryModalTitle">Nouvelle note</h2><button class="modal-x" onclick="closeEntryModal()">&times;</button></div>
+    <div class="fg"><label>Titre</label><input type="text" id="mTitle" placeholder="Ex : Implementation du systeme de pieces" maxlength="100"></div>
+    <div class="fg"><label>Date</label><input type="date" id="mDate"></div>
+    <div class="fg"><label>Categorie</label>
+      <div class="tag-row">
+        <button class="tchip sel" data-t="avancement" onclick="pickTag(this)">Avancement</button>
+        <button class="tchip" data-t="code" onclick="pickTag(this)">Code</button>
+        <button class="tchip" data-t="probleme" onclick="pickTag(this)">Probleme</button>
+        <button class="tchip" data-t="reflexion" onclick="pickTag(this)">Reflexion</button>
+        <button class="tchip" data-t="autre" onclick="pickTag(this)">Autre</button>
+      </div>
+    </div>
+    <div class="fg"><label>Contenu</label><textarea id="mBody" placeholder="Ce que tu as fait, les obstacles rencontres, les solutions trouvees"></textarea></div>
+    <div class="fg"><label>Avancement du projet  <span id="mProgVal">50</span>%</label><input type="range" id="mProg" min="0" max="100" value="50" oninput="document.getElementById('mProgVal').textContent=this.value"></div>
+    <div class="modal-actions"><button class="btn-cancel2" onclick="closeEntryModal()">Annuler</button><button class="btn-save" onclick="saveEntry()">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: PRES EDIT -->
+<div class="overlay" id="presOverlay">
+  <div class="modal">
+    <div class="modal-header"><h2>Presentation du projet</h2><button class="modal-x" onclick="closePresEdit()">&times;</button></div>
+    <div class="fg"><label>Titre du projet</label><input type="text" id="pTitle" placeholder="Nom du projet"></div>
+    <div class="fg"><label>Description</label><textarea id="pDesc" placeholder="Decris ton projet, ses objectifs, ses fonctionnalites" style="min-height:160px;"></textarea></div>
+    <div class="modal-actions"><button class="btn-cancel2" onclick="closePresEdit()">Annuler</button><button class="btn-save" onclick="savePresEdit()">Sauvegarder</button></div>
+  </div>
+</div>
+
+<!-- MODAL: DOC -->
+<div class="overlay" id="docOverlay">
+  <div class="modal">
+    <div class="modal-header"><h2>Ajouter un document</h2><button class="modal-x" onclick="closeDocModal()">&times;</button></div>
+    <div class="fg"><label>Nom du document</label><input type="text" id="docName" placeholder="Ex : Rapport final, Diagramme UML"></div>
+    <div class="fg"><label>Type</label>
+      <select id="docType">
+        <option value="pdf">PDF</option><option value="code">Code</option>
+        <option value="pptx">Presentation</option><option value="image">Image</option>
+        <option value="doc">Document Word</option><option value="link">Lien</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="fg"><label>Lien ou URL (optionnel)</label><input type="text" id="docUrl" placeholder="https://"></div>
+    <div class="fg"><label>Note / description</label><input type="text" id="docNote" placeholder="Breve description"></div>
+    <div class="modal-actions"><button class="btn-cancel2" onclick="closeDocModal()">Annuler</button><button class="btn-save" onclick="saveDoc()">Ajouter</button></div>
+  </div>
+</div>
+
+<!-- MODAL: SETTINGS -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-header"><h2>Parametres</h2><button class="modal-x" onclick="closeSettings()">&times;</button></div>
+    <div class="fg"><label>Nom du projet</label><input type="text" id="sProjName" placeholder="Distrigouttes"></div>
+    <div class="fg"><label>Auteur</label><input type="text" id="sAuthor" placeholder="Clement"></div>
+    <div class="modal-actions"><button class="btn-cancel2" onclick="closeSettings()">Annuler</button><button class="btn-save" onclick="saveSettings()">Sauvegarder</button></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
