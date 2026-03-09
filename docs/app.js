@@ -1,7 +1,6 @@
-// ── CONFIG ──
-// ⚠ Si vous déployez le serveur en ligne, remplacez cette URL par l'adresse publique de votre serveur
-const API_URL = 'http://localhost:3000/api';
-const POLL_INTERVAL = 12000; // Rafraîchissement automatique toutes les 12 secondes
+// ── FIREBASE ──
+let db, auth, docRef;
+let unsubSnapshot = null;
 
 // ── STATE ──
 let entries = [];
@@ -10,9 +9,8 @@ let pres    = { title: 'Distrigouttes', desc: 'Décris ton projet ici : objectif
 let cfg     = { proj: 'Distrigouttes', author: '' };
 
 // ── AUTH ──
-let authToken = localStorage.getItem('dg_token') || null;
-let authUser  = localStorage.getItem('dg_user')  || null;
-let pollTimer = null;
+let authToken = false;
+let authUser  = null;
 
 let activeFilter    = 'all';
 let activeDocFilter = 'all';
@@ -25,32 +23,33 @@ const TAG_COLORS = {avancement:'#5fd4a0',code:'#4f9ef8',probleme:'#f07070',refle
 const DOC_ICONS  = {pdf:'📄',code:'💻',pptx:'📊',image:'🖼',doc:'📝',link:'🔗',autre:'📁'};
 const DOC_LABELS = {pdf:'PDF',code:'Code',pptx:'Présentation',image:'Image',doc:'Word',link:'Lien',autre:'Autre'};
 
-// ── API ──
-async function fetchData(silent = false) {
-  try {
-    const res = await fetch(`${API_URL}/data`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    entries = data.entries || [];
-    docs    = data.docs    || [];
-    pres    = data.pres    || pres;
-    cfg     = data.cfg     || cfg;
-    if (silent) { renderPres(); renderJournal(); renderDocs(); applyConfig(); }
-  } catch {
-    if (!silent) toast('⚠ Impossible de contacter le serveur');
-  }
+// ── FIREBASE INIT & TEMPS RÉEL ──
+function initFirebase() {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db     = firebase.firestore();
+  auth   = firebase.auth();
+  docRef = db.collection('distrigouttes').doc('main');
+}
+
+function startListening() {
+  if (unsubSnapshot) unsubSnapshot();
+  unsubSnapshot = docRef.onSnapshot(snap => {
+    if (snap.exists) {
+      const data = snap.data();
+      entries = data.entries || [];
+      docs    = data.docs    || [];
+      pres    = data.pres    || pres;
+      cfg     = data.cfg     || cfg;
+    }
+    applyConfig();
+    renderPres(); renderJournal(); renderDocs();
+  }, () => toast('⚠ Erreur de connexion Firebase'));
 }
 
 async function pushData() {
   if (!authToken) return;
   try {
-    const res = await fetch(`${API_URL}/data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ entries, docs, pres, cfg })
-    });
-    if (res.status === 401) { handleUnauth(); return; }
-    if (!res.ok) throw new Error();
+    await docRef.set({ entries, docs, pres, cfg });
   } catch { toast('⚠ Erreur lors de la sauvegarde'); }
 }
 
@@ -85,57 +84,37 @@ async function submitLogin() {
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value;
   if (!username || !password) { toast('⚠ Remplis tous les champs'); return; }
+  if (username.toUpperCase() !== 'STI2D') { toast('⚠ Identifiants incorrects'); return; }
   const btn = document.getElementById('btnLoginSubmit');
   btn.disabled = true; btn.textContent = 'Connexion…';
   try {
-    const res = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (!res.ok) { toast('⚠ ' + (data.error || 'Identifiants incorrects')); return; }
-    authToken = data.token;
-    authUser  = data.username;
-    localStorage.setItem('dg_token', authToken);
-    localStorage.setItem('dg_user',  authUser);
+    await auth.signInWithEmailAndPassword('portrait.clement08@gmail.com', password);
     closeLoginModal();
-    updateAuthUI();
-    renderJournal(); renderDocs();
-    toast('✓ Connecté en tant que ' + authUser);
-  } catch { toast('⚠ Serveur inaccessible'); }
-  finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
+    toast('✓ Connecté en tant que STI2D');
+  } catch (e) {
+    const bad = ['auth/wrong-password','auth/user-not-found','auth/invalid-credential','auth/invalid-email'];
+    toast('⚠ ' + (bad.includes(e.code) ? 'Identifiants incorrects' : 'Erreur : ' + e.code));
+  } finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
 }
 
-function logout() {
-  authToken = null; authUser = null;
-  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
-  updateAuthUI(); renderJournal(); renderDocs(); toast('✓ Déconnecté');
-}
-
-function handleUnauth() {
-  authToken = null; authUser = null;
-  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
-  updateAuthUI(); toast('⚠ Session expirée, reconnectez-vous');
-}
-
-// ── POLLING (sync entre appareils) ──
-function startPolling() {
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (document.hidden) return;
-    await fetchData(true);
-  }, POLL_INTERVAL);
+async function logout() {
+  await auth.signOut();
+  toast('✓ Déconnecté');
 }
 
 // ── INIT ──
 async function init() {
-  await fetchData();
-  updateAuthUI();
-  applyConfig();
-  renderPres(); renderJournal(); renderDocs();
+  initFirebase();
+  // Écoute l'état de connexion Firebase Auth
+  auth.onAuthStateChanged(user => {
+    authToken = !!user;
+    authUser  = user ? 'STI2D' : null;
+    updateAuthUI();
+    renderJournal(); renderDocs();
+  });
+  // Démarre l'écoute temps réel Firestore
+  startListening();
   requestAnimationFrame(() => positionIndicator(document.getElementById('tab-pres')));
-  startPolling();
 }
 
 function applyConfig() {
