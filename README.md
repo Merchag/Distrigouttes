@@ -1,2 +1,2 @@
-# Distrigouttes
-Repo de tout le projet distrijoutte
+## Distrigouttes
+Ce projet va servir à administrer des gouttes dans les yeux lorsque l'on a pas la force suffisante dans les mains pour presser le flacon. Ou que l'on a pas la possibilité de lever les bras assez haut pour positionner le flacon.
