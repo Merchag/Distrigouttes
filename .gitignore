@@ -1,0 +1,3 @@
+# Dépendances Node.js (serveur local optionnel — non utilisé sur GitHub Pages)
+server/node_modules/
+server/.env
