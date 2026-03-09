@@ -1,17 +1,18 @@
-// ── FIREBASE ──
-// La configuration est dans firebase-config.js — voir SETUP.md
-let db, auth, docRef;
-let unsubSnapshot = null;
+// ── CONFIG ──
+// ⚠ Si vous déployez le serveur en ligne, remplacez cette URL par l'adresse publique de votre serveur
+const API_URL = 'http://localhost:3000/api';
+const POLL_INTERVAL = 12000; // Rafraîchissement automatique toutes les 12 secondes
 
 // ── STATE ──
 let entries = [];
 let docs    = [];
-let pres    = { title: 'Distrigouttes', desc: 'Décris ton projet ici : objectif, fonctionnalités, technologies utilisées\u2026' };
+let pres    = { title: 'Distrigouttes', desc: 'Décris ton projet ici : objectif, fonctionnalités, technologies utilisées…' };
 let cfg     = { proj: 'Distrigouttes', author: '' };
 
 // ── AUTH ──
-let authToken = false; // true si connecté via Firebase Auth
-let authUser  = null;
+let authToken = localStorage.getItem('dg_token') || null;
+let authUser  = localStorage.getItem('dg_user')  || null;
+let pollTimer = null;
 
 let activeFilter    = 'all';
 let activeDocFilter = 'all';
@@ -24,38 +25,32 @@ const TAG_COLORS = {avancement:'#5fd4a0',code:'#4f9ef8',probleme:'#f07070',refle
 const DOC_ICONS  = {pdf:'📄',code:'💻',pptx:'📊',image:'🖼',doc:'📝',link:'🔗',autre:'📁'};
 const DOC_LABELS = {pdf:'PDF',code:'Code',pptx:'Présentation',image:'Image',doc:'Word',link:'Lien',autre:'Autre'};
 
-// ── FIREBASE INIT & TEMPS RÉEL ──
-function initFirebase() {
-  if (typeof FIREBASE_CONFIG === 'undefined' || FIREBASE_CONFIG.apiKey === 'VOTRE_API_KEY') {
-    toast('⚠ firebase-config.js non configuré — voir SETUP.md');
-    return false;
+// ── API ──
+async function fetchData(silent = false) {
+  try {
+    const res = await fetch(`${API_URL}/data`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    entries = data.entries || [];
+    docs    = data.docs    || [];
+    pres    = data.pres    || pres;
+    cfg     = data.cfg     || cfg;
+    if (silent) { renderPres(); renderJournal(); renderDocs(); applyConfig(); }
+  } catch {
+    if (!silent) toast('⚠ Impossible de contacter le serveur');
   }
-  firebase.initializeApp(FIREBASE_CONFIG);
-  db     = firebase.firestore();
-  auth   = firebase.auth();
-  docRef = db.collection('distrigouttes').doc('main');
-  return true;
-}
-
-function startListening() {
-  if (unsubSnapshot) unsubSnapshot();
-  unsubSnapshot = docRef.onSnapshot(snap => {
-    if (snap.exists) {
-      const data = snap.data();
-      entries = data.entries || [];
-      docs    = data.docs    || [];
-      pres    = data.pres    || pres;
-      cfg     = data.cfg     || cfg;
-    }
-    applyConfig();
-    renderPres(); renderJournal(); renderDocs();
-  }, () => toast('⚠ Erreur de connexion Firebase'));
 }
 
 async function pushData() {
   if (!authToken) return;
   try {
-    await docRef.set({ entries, docs, pres, cfg });
+    const res = await fetch(`${API_URL}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ entries, docs, pres, cfg })
+    });
+    if (res.status === 401) { handleUnauth(); return; }
+    if (!res.ok) throw new Error();
   } catch { toast('⚠ Erreur lors de la sauvegarde'); }
 }
 
@@ -90,42 +85,57 @@ async function submitLogin() {
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value;
   if (!username || !password) { toast('⚠ Remplis tous les champs'); return; }
-  if (username.toUpperCase() !== 'STI2D') { toast('⚠ Identifiants incorrects'); return; }
   const btn = document.getElementById('btnLoginSubmit');
-  btn.disabled = true; btn.textContent = 'Connexion\u2026';
+  btn.disabled = true; btn.textContent = 'Connexion…';
   try {
-    await auth.signInWithEmailAndPassword('sti2d@distrigouttes.com', password);
+    const res = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('⚠ ' + (data.error || 'Identifiants incorrects')); return; }
+    authToken = data.token;
+    authUser  = data.username;
+    localStorage.setItem('dg_token', authToken);
+    localStorage.setItem('dg_user',  authUser);
     closeLoginModal();
-    toast('\u2713 Connecté en tant que STI2D');
-  } catch (e) {
-    const bad = ['auth/wrong-password','auth/user-not-found','auth/invalid-credential','auth/invalid-email'];
-    toast('\u26a0 ' + (bad.includes(e.code) ? 'Identifiants incorrects' : 'Erreur de connexion'));
-  } finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
+    updateAuthUI();
+    renderJournal(); renderDocs();
+    toast('✓ Connecté en tant que ' + authUser);
+  } catch { toast('⚠ Serveur inaccessible'); }
+  finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
 }
 
-async function logout() {
-  await auth.signOut();
-  toast('\u2713 Déconnecté');
+function logout() {
+  authToken = null; authUser = null;
+  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
+  updateAuthUI(); renderJournal(); renderDocs(); toast('✓ Déconnecté');
+}
+
+function handleUnauth() {
+  authToken = null; authUser = null;
+  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
+  updateAuthUI(); toast('⚠ Session expirée, reconnectez-vous');
+}
+
+// ── POLLING (sync entre appareils) ──
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (document.hidden) return;
+    await fetchData(true);
+  }, POLL_INTERVAL);
 }
 
 // ── INIT ──
 async function init() {
-  const ok = initFirebase();
-  if (ok) {
-    // Écoute l'état de connexion Firebase Auth
-    auth.onAuthStateChanged(user => {
-      authToken = !!user;
-      authUser  = user ? 'STI2D' : null;
-      updateAuthUI();
-      renderJournal(); renderDocs();
-    });
-    // Démarre l'écoute temps réel Firestore
-    startListening();
-  } else {
-    updateAuthUI(); applyConfig();
-    renderPres(); renderJournal(); renderDocs();
-  }
+  await fetchData();
+  updateAuthUI();
+  applyConfig();
+  renderPres(); renderJournal(); renderDocs();
   requestAnimationFrame(() => positionIndicator(document.getElementById('tab-pres')));
+  startPolling();
 }
 
 function applyConfig() {
