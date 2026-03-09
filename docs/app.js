@@ -1,7 +1,18 @@
-let entries = JSON.parse(localStorage.getItem('j_entries')||'[]');
-let docs    = JSON.parse(localStorage.getItem('j_docs')||'[]');
-let pres    = JSON.parse(localStorage.getItem('j_pres')||'{"title":"Distrigouttes","desc":"Décris ton projet ici : objectif, fonctionnalités, technologies utilisées…"}');
-let cfg     = JSON.parse(localStorage.getItem('j_cfg')||'{"proj":"Distrigouttes","author":""}');
+// ── CONFIG ──
+// ⚠ Si vous déployez le serveur en ligne, remplacez cette URL par l'adresse publique de votre serveur
+const API_URL = 'http://localhost:3000/api';
+const POLL_INTERVAL = 12000; // Rafraîchissement automatique toutes les 12 secondes
+
+// ── STATE ──
+let entries = [];
+let docs    = [];
+let pres    = { title: 'Distrigouttes', desc: 'Décris ton projet ici : objectif, fonctionnalités, technologies utilisées…' };
+let cfg     = { proj: 'Distrigouttes', author: '' };
+
+// ── AUTH ──
+let authToken = localStorage.getItem('dg_token') || null;
+let authUser  = localStorage.getItem('dg_user')  || null;
+let pollTimer = null;
 
 let activeFilter    = 'all';
 let activeDocFilter = 'all';
@@ -14,10 +25,117 @@ const TAG_COLORS = {avancement:'#5fd4a0',code:'#4f9ef8',probleme:'#f07070',refle
 const DOC_ICONS  = {pdf:'📄',code:'💻',pptx:'📊',image:'🖼',doc:'📝',link:'🔗',autre:'📁'};
 const DOC_LABELS = {pdf:'PDF',code:'Code',pptx:'Présentation',image:'Image',doc:'Word',link:'Lien',autre:'Autre'};
 
-function init() {
+// ── API ──
+async function fetchData(silent = false) {
+  try {
+    const res = await fetch(`${API_URL}/data`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    entries = data.entries || [];
+    docs    = data.docs    || [];
+    pres    = data.pres    || pres;
+    cfg     = data.cfg     || cfg;
+    if (silent) { renderPres(); renderJournal(); renderDocs(); applyConfig(); }
+  } catch {
+    if (!silent) toast('⚠ Impossible de contacter le serveur');
+  }
+}
+
+async function pushData() {
+  if (!authToken) return;
+  try {
+    const res = await fetch(`${API_URL}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ entries, docs, pres, cfg })
+    });
+    if (res.status === 401) { handleUnauth(); return; }
+    if (!res.ok) throw new Error();
+  } catch { toast('⚠ Erreur lors de la sauvegarde'); }
+}
+
+// ── AUTH FUNCTIONS ──
+function updateAuthUI() {
+  const loggedIn = !!authToken;
+  document.getElementById('btnLogin').style.display  = loggedIn ? 'none' : 'flex';
+  document.getElementById('btnLogout').style.display = loggedIn ? 'flex'  : 'none';
+  const ul = document.getElementById('authUser');
+  ul.textContent   = authUser || '';
+  ul.style.display = loggedIn ? 'inline' : 'none';
+  // FAB visible seulement sur l'onglet journal si connecté
+  document.getElementById('fab').style.display = (loggedIn && currentTab === 'journal') ? 'flex' : 'none';
+  // Bouton modifier présentation
+  const presBtn = document.getElementById('presEditBtn');
+  if (presBtn) presBtn.style.display = loggedIn ? '' : 'none';
+  // Bouton ajouter document
+  const addDocBtn = document.getElementById('addDocBtn');
+  if (addDocBtn) addDocBtn.style.display = loggedIn ? '' : 'none';
+}
+
+function openLoginModal() {
+  document.getElementById('loginOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('loginUser').focus(), 150);
+}
+function closeLoginModal() {
+  document.getElementById('loginOverlay').classList.remove('open');
+  document.getElementById('loginPass').value = '';
+}
+
+async function submitLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!username || !password) { toast('⚠ Remplis tous les champs'); return; }
+  const btn = document.getElementById('btnLoginSubmit');
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('⚠ ' + (data.error || 'Identifiants incorrects')); return; }
+    authToken = data.token;
+    authUser  = data.username;
+    localStorage.setItem('dg_token', authToken);
+    localStorage.setItem('dg_user',  authUser);
+    closeLoginModal();
+    updateAuthUI();
+    renderJournal(); renderDocs();
+    toast('✓ Connecté en tant que ' + authUser);
+  } catch { toast('⚠ Serveur inaccessible'); }
+  finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
+}
+
+function logout() {
+  authToken = null; authUser = null;
+  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
+  updateAuthUI(); renderJournal(); renderDocs(); toast('✓ Déconnecté');
+}
+
+function handleUnauth() {
+  authToken = null; authUser = null;
+  localStorage.removeItem('dg_token'); localStorage.removeItem('dg_user');
+  updateAuthUI(); toast('⚠ Session expirée, reconnectez-vous');
+}
+
+// ── POLLING (sync entre appareils) ──
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (document.hidden) return;
+    await fetchData(true);
+  }, POLL_INTERVAL);
+}
+
+// ── INIT ──
+async function init() {
+  await fetchData();
+  updateAuthUI();
   applyConfig();
   renderPres(); renderJournal(); renderDocs();
-  requestAnimationFrame(()=>positionIndicator(document.getElementById('tab-pres')));
+  requestAnimationFrame(() => positionIndicator(document.getElementById('tab-pres')));
+  startPolling();
 }
 
 function applyConfig() {
@@ -34,7 +152,7 @@ function switchTab(id, btn) {
   btn.classList.add('active');
   positionIndicator(btn);
   // FAB only on journal
-  document.getElementById('fab').style.display = id==='journal' ? 'flex' : 'none';
+  document.getElementById('fab').style.display = (id === 'journal' && authToken) ? 'flex' : 'none';
   if (id==='pres') {
     document.querySelectorAll('.pres-card').forEach((c,i)=>{
       c.style.animation='none'; c.style.opacity='0';
@@ -60,15 +178,17 @@ function renderPres() {
   updateStats();
 }
 function openPresEdit() {
-  document.getElementById('pTitle').value=pres.title;
-  document.getElementById('pDesc').value=pres.desc;
+  if (!authToken) { toast('⚠ Connectez-vous pour modifier'); return; }
+  document.getElementById('pTitle').value = pres.title;
+  document.getElementById('pDesc').value  = pres.desc;
   document.getElementById('presOverlay').classList.add('open');
 }
 function closePresEdit() { document.getElementById('presOverlay').classList.remove('open'); }
-function savePresEdit() {
-  pres.title=document.getElementById('pTitle').value.trim()||'Distrigouttes';
-  pres.desc =document.getElementById('pDesc').value.trim();
-  localStorage.setItem('j_pres',JSON.stringify(pres));
+async function savePresEdit() {
+  if (!authToken) return;
+  pres.title = document.getElementById('pTitle').value.trim() || 'Distrigouttes';
+  pres.desc  = document.getElementById('pDesc').value.trim();
+  await pushData();
   renderPres(); closePresEdit(); toast('✓ Présentation mise à jour');
 }
 
@@ -113,7 +233,7 @@ function renderJournal() {
   fil.sort((a,b)=>new Date(b.date)-new Date(a.date));
   const el=document.getElementById('entriesScroll');
   if (!fil.length) {
-    el.innerHTML=`<div class="empty"><div class="empty-icon">📓</div><p>Aucune note ici.<br>Clique sur <strong>+</strong> pour commencer ton journal !</p></div>`;
+    el.innerHTML=`<div class="empty"><div class="empty-icon">📓</div><p>Aucune note ici.<br>${authToken ? 'Clique sur <strong>+</strong> pour commencer ton journal !' : 'Connecte-toi pour ajouter des notes.'}</p></div>`;
     return;
   }
   el.innerHTML=fil.map((e,i)=>{
@@ -130,10 +250,10 @@ function renderJournal() {
             </div>
           </div>
         </div>
-        <div class="ec-actions">
+        ${authToken ? `<div class="ec-actions">
           <button class="ec-btn edit" onclick="openEntryModal(${e.id})" title="Modifier">✎</button>
           <button class="ec-btn del"  onclick="deleteEntry(${e.id})"    title="Supprimer">✕</button>
-        </div>
+        </div>` : ''}
       </div>
       <div class="ec-body collapsed" id="body-${e.id}">${esc(e.body)}</div>
       <button class="ec-expand" id="exp-${e.id}" onclick="toggleBody(${e.id})"><span class="ec-expand-arrow">▼</span> Lire la suite</button>
@@ -153,6 +273,7 @@ function toggleBody(id) {
   e.childNodes[1].textContent=col?' Lire la suite':' Réduire';
 }
 function openEntryModal(id=null) {
+  if (!authToken) { toast('⚠ Connectez-vous pour modifier'); return; }
   editingId=id;
   const today=new Date().toISOString().split('T')[0];
   if (id!==null) {
@@ -174,26 +295,39 @@ function openEntryModal(id=null) {
 }
 function closeEntryModal() { document.getElementById('entryOverlay').classList.remove('open'); editingId=null; }
 function pickTag(el) { document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
-function saveEntry() {
-  const title=document.getElementById('mTitle').value.trim();
-  const date=document.getElementById('mDate').value;
-  const body=document.getElementById('mBody').value.trim();
-  const progress=parseInt(document.getElementById('mProg').value);
-  const tagEl=document.querySelector('.tchip.sel');
-  const tag=tagEl?tagEl.dataset.t:'autre';
+async function saveEntry() {
+  if (!authToken) { toast('⚠ Connectez-vous pour sauvegarder'); return; }
+  const title    = document.getElementById('mTitle').value.trim();
+  const date     = document.getElementById('mDate').value;
+  const body     = document.getElementById('mBody').value.trim();
+  const progress = parseInt(document.getElementById('mProg').value);
+  const tagEl    = document.querySelector('.tchip.sel');
+  const tag      = tagEl ? tagEl.dataset.t : 'autre';
   if (!title) { toast('⚠ Ajoute un titre'); return; }
   if (!date)  { toast('⚠ Choisis une date'); return; }
   if (!body)  { toast('⚠ Écris quelque chose dans le contenu'); return; }
-  if (editingId!==null) {
-    const i=entries.findIndex(x=>x.id===editingId);
-    if (i!==-1) entries[i]={...entries[i],title,date,body,progress,tag};
+  if (editingId !== null) {
+    const i = entries.findIndex(x => x.id === editingId);
+    if (i !== -1) entries[i] = { ...entries[i], title, date, body, progress, tag };
     toast('✓ Note modifiée');
-  } else { entries.push({id:Date.now(),title,date,body,progress,tag}); toast('✓ Note ajoutée'); }
-  save(); closeEntryModal(); renderJournal(); updateStats();
+  } else {
+    entries.push({ id: Date.now(), title, date, body, progress, tag });
+    toast('✓ Note ajoutée');
+  }
+  await pushData();
+  closeEntryModal(); renderJournal(); updateStats();
 }
 function deleteEntry(id) {
-  const card=document.getElementById('ec-'+id);
-  if (card) { card.classList.add('deleting'); setTimeout(()=>{ entries=entries.filter(e=>e.id!==id); save(); renderJournal(); updateStats(); toast('✓ Note supprimée'); },280); }
+  if (!authToken) return;
+  const card = document.getElementById('ec-' + id);
+  if (card) {
+    card.classList.add('deleting');
+    setTimeout(async () => {
+      entries = entries.filter(e => e.id !== id);
+      await pushData();
+      renderJournal(); updateStats(); toast('✓ Note supprimée');
+    }, 280);
+  }
 }
 
 // ── DOCUMENTS ──
@@ -219,42 +353,55 @@ function renderDocs() {
       <div class="doc-card-name">${esc(d.name)}</div>
       ${d.note?`<div class="doc-card-note">${esc(d.note)}</div>`:''}
       ${d.url?`<a class="doc-card-link" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Ouvrir ↗</a>`:''}
-      <button class="doc-del" onclick="deleteDoc(${d.id})" title="Supprimer">✕</button>
+      ${authToken ? `<button class="doc-del" onclick="deleteDoc(${d.id})" title="Supprimer">✕</button>` : ''}
     </div>`).join('');
 }
-function openDocModal()  { document.getElementById('docOverlay').classList.add('open'); }
+function openDocModal()  {
+  if (!authToken) { toast('⚠ Connectez-vous pour ajouter'); return; }
+  document.getElementById('docOverlay').classList.add('open');
+}
 function closeDocModal() { document.getElementById('docOverlay').classList.remove('open'); }
-function saveDoc() {
-  const name=document.getElementById('docName').value.trim();
+async function saveDoc() {
+  if (!authToken) return;
+  const name = document.getElementById('docName').value.trim();
   if (!name) { toast('⚠ Donne un nom au document'); return; }
-  docs.push({id:Date.now(),name,type:document.getElementById('docType').value,url:document.getElementById('docUrl').value.trim(),note:document.getElementById('docNote').value.trim()});
-  localStorage.setItem('j_docs',JSON.stringify(docs));
+  docs.push({ id: Date.now(), name, type: document.getElementById('docType').value, url: document.getElementById('docUrl').value.trim(), note: document.getElementById('docNote').value.trim() });
+  await pushData();
   renderDocs(); closeDocModal();
-  ['docName','docUrl','docNote'].forEach(id=>document.getElementById(id).value='');
+  ['docName','docUrl','docNote'].forEach(id => document.getElementById(id).value = '');
   toast('✓ Document ajouté');
 }
-function deleteDoc(id) {
+async function deleteDoc(id) {
+  if (!authToken) return;
   if (!confirm('Supprimer ce document ?')) return;
-  docs=docs.filter(d=>d.id!==id); localStorage.setItem('j_docs',JSON.stringify(docs)); renderDocs(); toast('✓ Document supprimé');
+  docs = docs.filter(d => d.id !== id);
+  await pushData();
+  renderDocs(); toast('✓ Document supprimé');
 }
 
 // ── SETTINGS ──
-function openSettings() { document.getElementById('sProjName').value=cfg.proj; document.getElementById('sAuthor').value=cfg.author||''; document.getElementById('settingsOverlay').classList.add('open'); }
+function openSettings() {
+  if (!authToken) { toast('⚠ Connectez-vous pour accéder aux paramètres'); return; }
+  document.getElementById('sProjName').value = cfg.proj;
+  document.getElementById('sAuthor').value   = cfg.author || '';
+  document.getElementById('settingsOverlay').classList.add('open');
+}
 function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
-function saveSettings() {
-  cfg.proj=document.getElementById('sProjName').value.trim()||'Distrigouttes';
-  cfg.author=document.getElementById('sAuthor').value.trim();
-  localStorage.setItem('j_cfg',JSON.stringify(cfg)); applyConfig(); closeSettings(); toast('✓ Paramètres sauvegardés');
+async function saveSettings() {
+  if (!authToken) return;
+  cfg.proj   = document.getElementById('sProjName').value.trim() || 'Distrigouttes';
+  cfg.author = document.getElementById('sAuthor').value.trim();
+  await pushData();
+  applyConfig(); closeSettings(); toast('✓ Paramètres sauvegardés');
 }
 
 // ── UTILS ──
-function save() { localStorage.setItem('j_entries',JSON.stringify(entries)); }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 let toastTimer;
 function toast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2200); }
 
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov){ov.classList.remove('open');editingId=null;} }));
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));editingId=null;} if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();openEntryModal();} });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));editingId=null;} if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();openEntryModal();} if(e.key==='Enter'&&document.getElementById('loginOverlay').classList.contains('open')){e.preventDefault();submitLogin();} });
 window.addEventListener('resize',()=>{ const a=document.querySelector('.tab.active'); if(a) positionIndicator(a); });
 
 init();

@@ -15,6 +15,9 @@
     <div class="topbar-proj" id="topProjName">Distrigouttes</div>
     <div class="topbar-spacer"></div>
     <div class="topbar-stat"><div class="dot"></div><span id="topEntriesCount">0 note</span></div>
+    <span class="auth-user-label" id="authUser" style="display:none"></span>
+    <button class="btn-login" id="btnLogin" onclick="openLoginModal()" title="Connexion">&#128274; Connexion</button>
+    <button class="btn-logout" id="btnLogout" onclick="logout()" style="display:none" title="Déconnexion">Déconnexion</button>
     <button class="btn-settings" onclick="openSettings()" title="Parametres">&#9881;</button>
   </div>
 
@@ -40,7 +43,7 @@
           <h3>Presentation du projet</h3>
           <div class="pres-title-display" id="presTitle">Distrigouttes</div>
           <div class="pres-desc-display" id="presDesc">Decris ton projet ici</div>
-          <button class="pres-edit-btn" onclick="openPresEdit()">&#10002; Modifier la presentation</button>
+          <button class="pres-edit-btn" id="presEditBtn" onclick="openPresEdit()" style="display:none">&#10002; Modifier la presentation</button>
         </div>
         <div class="pres-card" style="animation-delay:.1s">
           <h3>Statistiques</h3>
@@ -95,7 +98,7 @@
           <div class="docs-panel-title">Documents &amp; Fichiers</div>
           <div class="docs-panel-sub" id="docsCount">0 document</div>
         </div>
-        <button class="btn-add-doc" onclick="openDocModal()">+ Ajouter un document</button>
+        <button class="btn-add-doc" id="addDocBtn" onclick="openDocModal()" style="display:none">+ Ajouter un document</button>
       </div>
       <div class="doc-type-filters" id="docTypeFilters">
         <button class="fchip active" onclick="setDocFilter('all',this)">Tout</button>
@@ -177,6 +180,18 @@
     <div class="fg"><label>Nom du projet</label><input type="text" id="sProjName" placeholder="Distrigouttes"></div>
     <div class="fg"><label>Auteur</label><input type="text" id="sAuthor" placeholder="Clement"></div>
     <div class="modal-actions"><button class="btn-cancel2" onclick="closeSettings()">Annuler</button><button class="btn-save" onclick="saveSettings()">Sauvegarder</button></div>
+  </div>
+</div>
+
+<!-- MODAL: LOGIN -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal modal-login">
+    <div class="modal-header"><h2>Connexion</h2><button class="modal-x" onclick="closeLoginModal()">&times;</button></div>
+    <div class="login-lock">&#128274;</div>
+    <p class="login-sub">Connectez-vous avec le compte STI2D pour modifier le site.</p>
+    <div class="fg"><label>Identifiant</label><input type="text" id="loginUser" placeholder="Ex : STI2D" autocomplete="username"></div>
+    <div class="fg"><label>Mot de passe</label><input type="password" id="loginPass" placeholder="Mot de passe" autocomplete="current-password"></div>
+    <div class="modal-actions"><button class="btn-save" id="btnLoginSubmit" onclick="submitLogin()">Se connecter</button></div>
   </div>
 </div>
 
