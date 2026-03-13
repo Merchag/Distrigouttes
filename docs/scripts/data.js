@@ -110,9 +110,17 @@
           toast('⚠ Erreur de connexion Firebase');
         }
 
-        reportError('Connexion Firebase échouée', error, 'Clique sur Recharger, ou reconnecte internet.');
-
         const code = error && error.code ? error.code : '';
+        if (code.includes('permission')) {
+          reportError(
+            'Permission Firestore refusée',
+            error,
+            'Firebase Console > Firestore Database > Rules: autorise au moins read pour /distrigouttes/main.'
+          );
+        } else {
+          reportError('Connexion Firebase échouée', error, 'Clique sur Recharger, ou reconnecte internet.');
+        }
+
         if (!retryingReadSession && (code.includes('permission') || code.includes('unavailable') || code.includes('network'))) {
           retryingReadSession = true;
           const ok = await app.authModule.ensureReadSessionWithSwitch(true);

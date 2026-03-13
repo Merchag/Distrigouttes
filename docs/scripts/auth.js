@@ -90,7 +90,10 @@
       state.manualAuth = false;
       const badCodes = ['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email', 'auth/email-already-in-use'];
       toast('⚠ ' + (badCodes.includes(error.code) ? 'Identifiants incorrects' : 'Erreur : ' + error.code));
-      reportError('Erreur de connexion', error, 'Vérifie l\'email, le mot de passe STI2DD et la connectivité réseau.');
+      const authHint = error && error.code === 'auth/operation-not-allowed'
+        ? 'Active Authentication > Sign-in method > Email/Password dans Firebase.'
+        : 'Vérifie l\'email, le mot de passe STI2DD et la connectivité réseau.';
+      reportError('Erreur de connexion', error, authHint);
     } finally {
       btn.disabled = false;
       btn.textContent = 'Se connecter';
@@ -135,7 +138,7 @@
       }
     }
 
-    reportError('Lecture distante impossible', 'Aucun compte de lecture Firebase utilisable', 'Vérifie les règles Firebase et le mot de passe STI2DD des comptes de lecture.');
+    reportError('Lecture distante impossible', 'Aucun compte de lecture Firebase utilisable', 'Vérifie: Authentication Email/Password activé, comptes existants, et Firestore Rules autorisant la lecture.');
     return false;
   }
 
