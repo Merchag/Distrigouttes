@@ -39,16 +39,16 @@
 
     if (id === 'docs') app.documents.renderDocs();
 
-    if (id === 'settings') app.settings.loadSettingsPanel();
-
     requestAnimationFrame(() => document.getElementById('panel-' + id).classList.add('active'));
   }
 
-  function updateSettingsTabVisibility() {
-    const settingsTab = document.getElementById('tab-settings');
-    if (settingsTab) {
-      settingsTab.style.display = state.authToken ? '' : 'none';
-    }
+  function switchSettingsTab(tabId, btn) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+    
+    btn.classList.add('active');
+    const content = document.getElementById('settingsContent-' + tabId);
+    if (content) content.classList.add('active');
   }
 
   function bindGlobalUi() {
@@ -82,8 +82,8 @@
     });
   }
 
-  app.ui = { positionIndicator, switchTab, bindGlobalUi, updateSettingsTabVisibility };
+  app.ui = { positionIndicator, switchTab, bindGlobalUi, switchSettingsTab };
   window.positionIndicator = positionIndicator;
   window.switchTab = switchTab;
-  window.updateSettingsTabVisibility = updateSettingsTabVisibility;
+  window.switchSettingsTab = switchSettingsTab;
 })();

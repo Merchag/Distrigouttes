@@ -18,6 +18,7 @@
     <span class="auth-user-label" id="authUser" style="display:none"></span>
     <button class="btn-login" id="btnLogin" onclick="openLoginModal()" title="Connexion">&#128274; Connexion</button>
     <button class="btn-logout" id="btnLogout" onclick="logout()" style="display:none" title="Déconnexion">Déconnexion</button>
+    <button class="btn-settings" onclick="openSettings()" title="Parametres">&#9881;</button>
   </div>
 
   <div class="tabs" id="tabsBar">
@@ -30,9 +31,6 @@
     </button>
     <button class="tab" id="tab-docs" onclick="switchTab('docs',this)">
       <span class="tab-icon">&#128193;</span> Documents
-    </button>
-    <button class="tab" id="tab-settings" onclick="switchTab('settings',this)" style="display:none">
-      <span class="tab-icon">&#9881;</span> Parametres
     </button>
   </div>
 
@@ -124,36 +122,6 @@
       <div class="docs-empty-full" id="docsEmptyFull">
         <div class="empty-icon">&#128193;</div>
         <p>Aucun document ajoute pour l'instant.<br>Clique sur <strong>+ Ajouter un document</strong> pour commencer.</p>
-      </div>
-    </div>
-
-    <!-- PARAMETRES (onglet 4) - visible seulement si connecté -->
-    <div class="tab-panel settings-panel" id="panel-settings">
-      <div class="settings-container">
-        <div class="settings-group">
-          <h3>Mode d'Affichage</h3>
-          <div class="settings-item">
-            <label class="settings-label">Thème</label>
-            <button class="btn-theme-toggle dark" id="btnThemeToggleSettings" onclick="toggleTheme()" title="Mode sombre/clair" style="margin-top:10px;">
-              <span class="sun">☀️</span>
-              <span class="moon">🌙</span>
-            </button>
-            <div class="settings-hint">Personnalisez l'apparence pour le confort des yeux</div>
-          </div>
-        </div>
-        
-        <div class="settings-group">
-          <h3>Paramètres du Projet</h3>
-          <div class="settings-item">
-            <label class="settings-label">Nom du projet</label>
-            <input type="text" id="setProjName" placeholder="Distrigouttes">
-          </div>
-          <div class="settings-item">
-            <label class="settings-label">Auteur / Responsable</label>
-            <input type="text" id="setAuthor" placeholder="Clement">
-          </div>
-          <button class="btn-save" onclick="saveProjectSettings()" style="margin-top:20px;">Sauvegarder les paramètres</button>
-        </div>
       </div>
     </div>
 
@@ -285,11 +253,50 @@
 
 <!-- MODAL: SETTINGS -->
 <div class="overlay" id="settingsOverlay">
-  <div class="modal">
+  <div class="modal modal-settings">
     <div class="modal-header"><h2>Parametres</h2><button class="modal-x" onclick="closeSettings()">&times;</button></div>
-    <div class="fg"><label>Nom du projet</label><input type="text" id="sProjName" placeholder="Distrigouttes"></div>
-    <div class="fg"><label>Auteur</label><input type="text" id="sAuthor" placeholder="Clement"></div>
-    <div class="modal-actions"><button class="btn-cancel2" onclick="closeSettings()">Annuler</button><button class="btn-save" onclick="saveSettings()">Sauvegarder</button></div>
+    
+    <!-- Onglets -->
+    <div class="settings-tabs">
+      <button class="settings-tab active" id="settingsTabAppearance" onclick="switchSettingsTab('appearance', this)">
+        &#127758; Apparence
+      </button>
+      <button class="settings-tab" id="settingsTabProject" onclick="switchSettingsTab('project', this)" style="display:none">
+        &#128736; Projet
+      </button>
+    </div>
+
+    <!-- Onglet Apparence (visible par tous) -->
+    <div class="settings-tab-content active" id="settingsContent-appearance">
+      <div class="settings-section">
+        <h3>Mode d'Affichage</h3>
+        <div class="settings-item">
+          <label>Thème</label>
+          <button class="btn-theme-toggle dark" id="btnThemeToggleModal" onclick="toggleTheme()" title="Mode sombre/clair">
+            <span class="sun">☀️</span>
+            <span class="moon">🌙</span>
+          </button>
+          <p class="settings-hint">Personnalisez l'apparence pour le confort des yeux</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onglet Projet (visible seulement si connecté) -->
+    <div class="settings-tab-content" id="settingsContent-project">
+      <div class="settings-section">
+        <h3>Paramètres du Projet</h3>
+        <div class="settings-item">
+          <label>Nom du projet</label>
+          <input type="text" id="sProjName" placeholder="Distrigouttes">
+        </div>
+        <div class="settings-item">
+          <label>Auteur / Responsable</label>
+          <input type="text" id="sAuthor" placeholder="Clement">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions"><button class="btn-cancel2" onclick="closeSettings()">Fermer</button><button class="btn-save" id="settingsSaveBtn" onclick="saveSettings()" style="display:none">Sauvegarder</button></div>
   </div>
 </div>
 

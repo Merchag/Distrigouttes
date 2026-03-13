@@ -37,8 +37,13 @@
     if (addDocBtn) addDocBtn.style.display = loggedIn ? '' : 'none';
 
     // Update settings tab visibility
-    if (app.ui && app.ui.updateSettingsTabVisibility) {
-      app.ui.updateSettingsTabVisibility();
+    const settingsTabProject = document.getElementById('settingsTabProject');
+    const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+    if (settingsTabProject) {
+      settingsTabProject.style.display = loggedIn ? '' : 'none';
+    }
+    if (settingsSaveBtn) {
+      settingsSaveBtn.style.display = loggedIn ? '' : 'none';
     }
   }
 
