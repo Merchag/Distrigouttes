@@ -59,11 +59,11 @@
   }
 
   function updateThemeButton(theme) {
-    const btn = document.getElementById('btnThemeToggle');
-    if (btn) {
+    // Update all theme toggle buttons
+    document.querySelectorAll('.btn-theme-toggle').forEach(btn => {
       btn.classList.toggle('light', theme === 'light');
       btn.classList.toggle('dark', theme === 'dark');
-    }
+    });
   }
 
   function initTheme() {

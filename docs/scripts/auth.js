@@ -35,6 +35,11 @@
 
     const addDocBtn = document.getElementById('addDocBtn');
     if (addDocBtn) addDocBtn.style.display = loggedIn ? '' : 'none';
+
+    // Update settings tab visibility
+    if (app.ui && app.ui.updateSettingsTabVisibility) {
+      app.ui.updateSettingsTabVisibility();
+    }
   }
 
   function openLoginModal() {

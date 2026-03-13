@@ -20,7 +20,6 @@ Ce site est le **blog de suivi du projet** permettant à l'équipe de:
 - 📁 Gérer et partager les documents du projet (plans, photos, résultats)
 - 📊 Suivre l'avancement global du projet
 - 🌐 Synchroniser les données entre plusieurs ordinateurs en temps réel
-- 🌙 Utiliser en mode sombre ou clair selon leurs préférences
 
 ## ✨ Fonctionnalités Principales du Blog
 
@@ -31,11 +30,8 @@ Ce site est le **blog de suivi du projet** permettant à l'équipe de:
 - Liez les documents et ressources à chaque note
 - Filtrez et recherchez dans l'historique du projet
 
-**Raccourci:** `Ctrl+N` pour créer rapidement une note
-
 ### 📁 Documents & Fichiers du Projet
 - Partagez les plans, photos, résultats et ressources du projet
-- 🌊 Upload avec animation de flasque en temps réel (0-100%)
 - Aperçu des documents et images directement dans l'app
 - Téléchargez facilement les fichiers
 - Organisez par type (PDF, CAO, Code, Image, etc.)
@@ -50,21 +46,6 @@ Ce site est le **blog de suivi du projet** permettant à l'équipe de:
 
 ### 🌟 Fonctionnalités Avancées
 
-#### Mode Sombre/Clair 🌙
-Clique sur le bouton **🌙/☀️** en haut à droite pour basculer entre les deux thèmes. Votre préférence est automatiquement sauvegardée.
-
-#### Export de Vos Notes 📤
-Une fois connecté, accédez à l'onglet Documents et trouvez les boutons d'export en bas:
-- **📊 CSV** - Ouvre dans Excel/Google Sheets
-- **{ } JSON** - Sauvegarde complète de toutes vos données
-- **📄 PDF** - Prêt à imprimer (Ctrl+P)
-
-#### Recherche Avancée 🔍
-- Tapez dans la barre de recherche du Journal
-- Filtrez par catégorie avec les boutons de filtre
-- L'historique de vos recherches est automatiquement sauvegardé
-- Recherche instantanée dans les titres et contenus
-
 ## 🤝 Travail Collaboratif
 
 L'application permet à l'équipe de projet de:
@@ -74,21 +55,9 @@ L'application permet à l'équipe de projet de:
 - **Consulter hors-ligne** - Accédez au cache même sans connexion internet
 - **Exporter facilement** - Sauvegardez tout en CSV, JSON ou PDF
 
-
-## 💾 Données & Confidentialité
-
-- Vos données sont stockées de manière sécurisée
-- Elles sont synchronisées en temps réel
-- Vous pouvez exporter vos données en CSV ou JSON
-- Les documents sont stockés de manière sécurisée
-- Seul votre compte peut accéder à vos données
-
 ## ⌨️ Raccourcis Clavier
 
 | Raccourci | Action |
 |-----------|--------|
-| `Ctrl+N` | Nouvelle note |
 | `Ctrl+F5` | Recharger la page (invalide le cache) |
 | `Esc` | Fermer les fenêtres ouvertes |
-
-**Distrigouttes v2.0** - Application web moderne pour gérer votre projet 🚀

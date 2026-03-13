@@ -39,7 +39,16 @@
 
     if (id === 'docs') app.documents.renderDocs();
 
+    if (id === 'settings') app.settings.loadSettingsPanel();
+
     requestAnimationFrame(() => document.getElementById('panel-' + id).classList.add('active'));
+  }
+
+  function updateSettingsTabVisibility() {
+    const settingsTab = document.getElementById('tab-settings');
+    if (settingsTab) {
+      settingsTab.style.display = state.authToken ? '' : 'none';
+    }
   }
 
   function bindGlobalUi() {
@@ -73,7 +82,8 @@
     });
   }
 
-  app.ui = { positionIndicator, switchTab, bindGlobalUi };
+  app.ui = { positionIndicator, switchTab, bindGlobalUi, updateSettingsTabVisibility };
   window.positionIndicator = positionIndicator;
   window.switchTab = switchTab;
+  window.updateSettingsTabVisibility = updateSettingsTabVisibility;
 })();

@@ -18,8 +18,6 @@
     <span class="auth-user-label" id="authUser" style="display:none"></span>
     <button class="btn-login" id="btnLogin" onclick="openLoginModal()" title="Connexion">&#128274; Connexion</button>
     <button class="btn-logout" id="btnLogout" onclick="logout()" style="display:none" title="Déconnexion">Déconnexion</button>
-    <button class="btn-theme-toggle dark" id="btnThemeToggle" onclick="toggleTheme()" title="Mode sombre/clair"><span class="sun">&#9728;</span><span class="moon">&#128161;</span></button>
-    <button class="btn-settings" onclick="openSettings()" title="Parametres">&#9881;</button>
   </div>
 
   <div class="tabs" id="tabsBar">
@@ -32,6 +30,9 @@
     </button>
     <button class="tab" id="tab-docs" onclick="switchTab('docs',this)">
       <span class="tab-icon">&#128193;</span> Documents
+    </button>
+    <button class="tab" id="tab-settings" onclick="switchTab('settings',this)" style="display:none">
+      <span class="tab-icon">&#9881;</span> Parametres
     </button>
   </div>
 
@@ -123,6 +124,36 @@
       <div class="docs-empty-full" id="docsEmptyFull">
         <div class="empty-icon">&#128193;</div>
         <p>Aucun document ajoute pour l'instant.<br>Clique sur <strong>+ Ajouter un document</strong> pour commencer.</p>
+      </div>
+    </div>
+
+    <!-- PARAMETRES (onglet 4) - visible seulement si connecté -->
+    <div class="tab-panel settings-panel" id="panel-settings">
+      <div class="settings-container">
+        <div class="settings-group">
+          <h3>Mode d'Affichage</h3>
+          <div class="settings-item">
+            <label class="settings-label">Thème</label>
+            <button class="btn-theme-toggle dark" id="btnThemeToggleSettings" onclick="toggleTheme()" title="Mode sombre/clair" style="margin-top:10px;">
+              <span class="sun">☀️</span>
+              <span class="moon">🌙</span>
+            </button>
+            <div class="settings-hint">Personnalisez l'apparence pour le confort des yeux</div>
+          </div>
+        </div>
+        
+        <div class="settings-group">
+          <h3>Paramètres du Projet</h3>
+          <div class="settings-item">
+            <label class="settings-label">Nom du projet</label>
+            <input type="text" id="setProjName" placeholder="Distrigouttes">
+          </div>
+          <div class="settings-item">
+            <label class="settings-label">Auteur / Responsable</label>
+            <input type="text" id="setAuthor" placeholder="Clement">
+          </div>
+          <button class="btn-save" onclick="saveProjectSettings()" style="margin-top:20px;">Sauvegarder les paramètres</button>
+        </div>
       </div>
     </div>
 

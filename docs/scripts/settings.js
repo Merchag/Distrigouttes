@@ -3,6 +3,7 @@
   const { state } = app;
   const { toast } = app.utils;
 
+  // Legacy functions for modal (kept for compatibility)
   function openSettings() {
     if (!state.authToken) {
       toast('⚠ Connectez-vous pour accéder aux paramètres');
@@ -27,8 +28,25 @@
     toast('✓ Paramètres sauvegardés');
   }
 
-  app.settings = { openSettings, closeSettings, saveSettings };
+  // New functions for settings panel (in tab)
+  function loadSettingsPanel() {
+    if (!state.authToken) return;
+    document.getElementById('setProjName').value = state.cfg.proj || 'Distrigouttes';
+    document.getElementById('setAuthor').value = state.cfg.author || '';
+  }
+
+  async function saveProjectSettings() {
+    if (!state.authToken) return;
+    state.cfg.proj = document.getElementById('setProjName').value.trim() || 'Distrigouttes';
+    state.cfg.author = document.getElementById('setAuthor').value.trim();
+    await app.data.pushData();
+    app.data.applyConfig();
+    toast('✓ Paramètres du projet sauvegardés');
+  }
+
+  app.settings = { openSettings, closeSettings, saveSettings, loadSettingsPanel, saveProjectSettings };
   window.openSettings = openSettings;
   window.closeSettings = closeSettings;
   window.saveSettings = saveSettings;
+  window.saveProjectSettings = saveProjectSettings;
 })();
