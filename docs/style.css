@@ -243,6 +243,63 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',
 .login-lock{font-size:2.8rem;text-align:center;margin-bottom:8px;animation:float 3s ease-in-out infinite;}
 .login-sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:20px;}
 
+/* ENHANCED ANIMATIONS & NEW FEATURES */
+
+/* Improved doc preview modal */
+.modal-doc-preview .modal-header{padding-bottom:16px;border-bottom:1px solid var(--border);}
+.doc-preview-body{box-shadow:inset 0 2px 8px rgba(0,0,0,.3);}
+.doc-preview-frame{background:#fafafa;}
+
+/* Enhanced upload progress animation */
+.doc-drop-progress{animation:slideUp .3s ease-out;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Advanced flask animation with liquid wave */
+.flask-svg{animation:flaskBounce .4s ease-out;}
+@keyframes flaskBounce{0%{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.flask-wave-anim{filter:drop-shadow(0 1px 2px rgba(79,158,248,.3));}
+
+/* Document card hover effects */
+.doc-card{position:relative;overflow:hidden;}
+.doc-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 0%,rgba(232,197,71,.05) 100%);opacity:0;transition:opacity .3s;pointer-events:none;}
+.doc-card:hover::before{opacity:1;}
+
+/* Enhanced search and filters */
+.doc-type-filters{scrollbar-width:thin;}
+.fchip{position:relative;}
+.fchip.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);border-radius:2px 2px 0 0;}
+
+/* Document card improvements */
+.doc-card-top{align-items:center;}
+.doc-card-name{transition:color .2s;}
+.doc-card:hover .doc-card-name{color:var(--accent);}
+
+/* Linked documents styling */
+.ec-linked-docs{max-height:120px;overflow-y:auto;}
+.doc-link-chip:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;}
+
+/* Export buttons container */
+.export-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.btn-export{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:7px;font-size:11px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;}
+.btn-export:hover{border-color:var(--accent2);color:var(--accent2);}
+
+/* Theme toggle button */
+.btn-theme-toggle{background:none;border:1px solid var(--border2);color:var(--muted);width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;margin-left:12px;}
+.btn-theme-toggle:hover{border-color:var(--accent);color:var(--accent);}
+.btn-theme-toggle.dark .sun{display:none;}
+.btn-theme-toggle.light .moon{display:none;}
+
+/* Sync status indicator */
+.sync-status{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--green);opacity:0;animation:syncPulse 2s infinite;}
+@keyframes syncPulse{0%,100%{box-shadow:0 0 0 0 rgba(95,212,160,.6);opacity:.7}50%{box-shadow:0 0 0 6px rgba(95,212,160,0);opacity:1}}
+.sync-status.offline{background:var(--red);animation:none;}
+
+/* Advanced search input */
+.search-input.advanced{padding-right:38px;}
+.search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;transition:color .2s;display:none;}
+.search-clear.show{display:block;}
+.search-clear:hover{color:var(--text);}
+
 @media(max-width:640px){
   .topbar{padding:0 16px;gap:12px;}.tabs{padding:0 16px;}
   .journal-panel,.pres-panel,.docs-panel{padding:16px;}
@@ -254,4 +311,5 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',
   .docs-grid-full{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
   .btn-login,.btn-logout{padding:5px 9px;font-size:11px;}
   .auth-user-label{display:none !important;}
+  .btn-theme-toggle{width:30px;height:30px;font-size:13px;}
 }

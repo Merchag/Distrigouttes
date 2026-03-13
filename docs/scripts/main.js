@@ -3,6 +3,12 @@
   const { state } = app;
 
   async function init() {
+    // Initialize theme
+    if (app.theme) app.theme.initTheme();
+    
+    // Initialize search
+    if (app.search) app.search.initAdvancedSearch();
+    
     app.data.initSupabase();
 
     if ('serviceWorker' in navigator) {
@@ -19,6 +25,11 @@
       app.authModule.updateAuthUI();
       app.journal.renderJournal();
       app.documents.renderDocs();
+      
+      // Add export buttons if authenticated
+      if (state.authToken && app.export) {
+        app.export.addExportButtons();
+      }
     });
 
     app.data.startListening();

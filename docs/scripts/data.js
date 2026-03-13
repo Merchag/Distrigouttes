@@ -4,6 +4,10 @@
   const { toast, reportError } = app.utils;
   const LOCAL_CACHE_KEY = 'distrigouttes_snapshot_v1';
   const TABLE_NAME = 'app_data';
+  const SYNC_DEBOUNCE_MS = 2000; // Wait 2s before syncing to avoid rapid calls
+
+  let syncDebounceTimer = null;
+  let isOnline = navigator.onLine;
 
   function saveLocalSnapshot() {
     try {
@@ -40,6 +44,10 @@
       throw new Error('Supabase config missing');
     }
     state.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Monitor online/offline state
+    window.addEventListener('online', () => { isOnline = true; toast('✓ Connecté'); });
+    window.addEventListener('offline', () => { isOnline = false; toast('⚠ Hors-ligne'); });
   }
 
   function applyConfig() {
@@ -127,20 +135,25 @@
 
   async function pushData() {
     if (!state.authToken) return;
-    try {
-      const { error } = await state.sb.from(TABLE_NAME).upsert({
-        id: 'main',
-        entries: state.entries,
-        docs: state.docs,
-        pres: state.pres,
-        cfg: state.cfg
-      });
-      if (error) throw error;
-      saveLocalSnapshot();
-    } catch {
-      toast('⚠ Erreur lors de la sauvegarde');
-      reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Supabase', 'Vérifie la policy UPDATE/INSERT sur app_data puis réessaie.');
-    }
+    
+    // Debounce rapid successive calls - saves bandwidth and prevents conflicts
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(async () => {
+      try {
+        const { error } = await state.sb.from(TABLE_NAME).upsert({
+          id: 'main',
+          entries: state.entries,
+          docs: state.docs,
+          pres: state.pres,
+          cfg: state.cfg
+        });
+        if (error) throw error;
+        saveLocalSnapshot();
+      } catch {
+        toast('⚠ Erreur lors de la sauvegarde');
+        reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Supabase', 'Vérifie la policy UPDATE/INSERT sur app_data puis réessaie.');
+      }
+    }, SYNC_DEBOUNCE_MS);
   }
 
   app.data = { initSupabase, applyConfig, startListening, pushData };
