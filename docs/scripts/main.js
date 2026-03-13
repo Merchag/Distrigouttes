@@ -14,14 +14,13 @@
     state.sb.auth.onAuthStateChange((_event, session) => {
       const user = session ? session.user : null;
       state.readSession = !!user;
-      state.authToken = !!user && !!state.manualAuth;
+      state.authToken = !!user;
       state.authUser = state.authToken ? (user.email || 'STI2D') : null;
       app.authModule.updateAuthUI();
       app.journal.renderJournal();
       app.documents.renderDocs();
     });
 
-    await app.authModule.ensureReadSession();
     app.data.startListening();
     app.ui.bindGlobalUi();
     requestAnimationFrame(() => app.ui.positionIndicator(document.getElementById('tab-pres')));

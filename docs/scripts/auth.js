@@ -3,7 +3,6 @@
   const { state } = app;
   const { toast, reportError } = app.utils;
   const FIXED_PASSWORD = 'STI2DD';
-  const READ_ACCOUNT_EMAILS = ['merchagpingouin@gmail.com', 'portrait.clement08@gmail.com'];
   const LOGIN_ALIASES = {
     STI2DD: 'merchagpingouin@gmail.com',
     STI2D: 'portrait.clement08@gmail.com'
@@ -92,11 +91,12 @@
       toast('✓ Connecté : ' + email);
     } catch (error) {
       state.manualAuth = false;
-      const badCodes = ['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email', 'auth/email-already-in-use'];
-      toast('⚠ ' + (badCodes.includes(error.code) ? 'Identifiants incorrects' : 'Erreur : ' + error.code));
-      const authHint = error && error.code === 'auth/operation-not-allowed'
-        ? 'Active Authentication > Sign-in method > Email/Password dans Firebase.'
-        : 'Vérifie l\'email, le mot de passe STI2DD et la connectivité réseau.';
+      const msg = String(error.message || '').toLowerCase();
+      const isBadCreds = msg.includes('invalid login credentials') || msg.includes('email not confirmed') || msg.includes('invalid email');
+      toast('⚠ ' + (isBadCreds ? 'Identifiants incorrects' : 'Erreur : ' + (error.code || error.message || 'unknown')));
+      const authHint = msg.includes('email not confirmed')
+        ? 'Dans Supabase > Authentication > Providers > Email, désactive Confirm email ou confirme le compte manuellement.'
+        : 'Vérifie l\'email, le mot de passe STI2DD et l\'activation du provider Email dans Supabase.';
       reportError('Erreur de connexion', error, authHint);
     } finally {
       btn.disabled = false;
@@ -105,48 +105,11 @@
   }
 
   async function ensureReadSession() {
-    return ensureReadSessionWithSwitch(false);
+    return true;
   }
 
   async function ensureReadSessionWithSwitch(forceSwitch = false) {
-    const current = state.auth.currentUser;
-    if (!forceSwitch && current && current.email) return true;
-
-    const candidates = [...READ_ACCOUNT_EMAILS];
-    if (current && current.email) {
-      const idx = candidates.indexOf(current.email);
-      if (idx > -1) {
-        candidates.splice(idx, 1);
-        candidates.push(current.email);
-      }
-    }
-
-    state.manualAuth = false;
-    for (const email of candidates) {
-      try {
-        await state.sb.auth.signOut();
-        const { error } = await state.sb.auth.signInWithPassword({ email, password: FIXED_PASSWORD });
-        if (error) throw error;
-        return true;
-      } catch (error) {
-        const msg = String(error.message || '').toLowerCase();
-        if (msg.includes('invalid login credentials') && email === 'merchagpingouin@gmail.com') {
-          try {
-            const { error: signUpError } = await state.sb.auth.signUp({ email, password: FIXED_PASSWORD });
-            if (signUpError) throw signUpError;
-            const { error: signInError } = await state.sb.auth.signInWithPassword({ email, password: FIXED_PASSWORD });
-            if (signInError) throw signInError;
-            return true;
-          } catch {
-            // try next fallback account
-          }
-        }
-        // try next fallback account
-      }
-    }
-
-    reportError('Lecture distante impossible', 'Aucun compte de lecture Firebase utilisable', 'Vérifie: Authentication Email/Password activé, comptes existants, et Firestore Rules autorisant la lecture.');
-    return false;
+    return true;
   }
 
   async function logout() {

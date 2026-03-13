@@ -4,7 +4,6 @@
   const { toast, reportError } = app.utils;
   const LOCAL_CACHE_KEY = 'distrigouttes_snapshot_v1';
   const TABLE_NAME = 'app_data';
-  let retryingReadSession = false;
 
   function saveLocalSnapshot() {
     try {
@@ -103,11 +102,8 @@
 
         reportError('Connexion Supabase échouée', error, 'Vérifie les policies RLS, URL, clé anon et la connexion internet.');
         const msg = String((error && (error.code || error.message)) || '').toLowerCase();
-        if (!retryingReadSession && (msg.includes('permission') || msg.includes('forbidden') || msg.includes('network') || msg.includes('jwt'))) {
-          retryingReadSession = true;
-          const ok = await app.authModule.ensureReadSessionWithSwitch(true);
-          if (ok) await hydrate();
-          retryingReadSession = false;
+        if (msg.includes('permission') || msg.includes('forbidden') || msg.includes('row-level security')) {
+          reportError('Policy Supabase bloquante', error, 'Vérifie la policy SELECT publique sur public.app_data dans SUPABASE_SETUP.md.');
         }
       }
     };
