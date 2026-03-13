@@ -111,6 +111,70 @@
     }
   }
 
+  // ── SYNC WITH SUPABASE STORAGE ──
+  async function syncStorageDocuments() {
+    try {
+      if (!state.sb) return;
+      
+      // List all files in the documents bucket
+      const { data: files, error } = await state.sb.storage
+        .from(SUPABASE_BUCKET)
+        .list('', { limit: 1000 });
+
+      if (error) throw error;
+      if (!files || files.length === 0) return;
+
+      // Create URLs for storage files
+      const storageFiles = files
+        .filter(f => !f.name.startsWith('.'))
+        .map(f => {
+          const { data } = state.sb.storage.from(SUPABASE_BUCKET).getPublicUrl(f.name);
+          return {
+            storagePath: f.name,
+            url: data?.publicUrl || '',
+            fileName: f.name.split('_').slice(1).join('_') || f.name,
+            uploadedAt: f.updated_at
+          };
+        });
+
+      // Add storage files that aren't in state.docs
+      const updatedDocs = [...state.docs];
+      let hasNew = false;
+
+      for (const storageFile of storageFiles) {
+        // Check if this storage file is already in state.docs
+        const exists = updatedDocs.some(doc => doc.url === storageFile.url);
+        
+        if (!exists && storageFile.url) {
+          // Create a new doc entry for this storage file
+          const type = detectDocType(storageFile.fileName);
+          updatedDocs.push({
+            id: Date.now() + Math.random(),
+            name: storageFile.fileName,
+            type: type,
+            url: storageFile.url,
+            note: 'Auto-imported from storage',
+            uploadedAt: storageFile.uploadedAt
+          });
+          hasNew = true;
+        }
+      }
+
+      // Update state if there are new documents
+      if (hasNew) {
+        state.docs = updatedDocs;
+        await app.data.pushData();
+        // Re-render if we're on the docs tab
+        if (state.currentTab === 'docs') {
+          renderDocs();
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation du storage:', error);
+      // Continue without failing - storage sync is not critical
+    }
+  }
+
   // ── FILE UPLOAD TO SUPABASE STORAGE ──
   function setFlaskLevel(pct, pctEl) {
     const ly = 76 * (1 - pct / 100);
@@ -269,6 +333,11 @@
           ${state.authToken ? `<button class="doc-del" onclick="event.stopPropagation(); deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
         </div>`)
       .join('');
+    
+    // Sync storage documents in background
+    if (app.documents && app.documents.syncStorageDocuments) {
+      setTimeout(() => app.documents.syncStorageDocuments(), 500);
+    }
   }
 
   function openDocModal() {
@@ -326,7 +395,7 @@
 
   bindDropZone();
 
-  app.documents = { setDocFilter, renderDocs, openDocModal, closeDocModal, saveDoc, deleteDoc, uploadFile, detectDocType, openDocFile };
+  app.documents = { setDocFilter, renderDocs, openDocModal, closeDocModal, saveDoc, deleteDoc, uploadFile, detectDocType, openDocFile, syncStorageDocuments };
   window.setDocFilter    = setDocFilter;
   window.renderDocs      = renderDocs;
   window.openDocModal    = openDocModal;

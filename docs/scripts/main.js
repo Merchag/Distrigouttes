@@ -33,6 +33,14 @@
     });
 
     app.data.startListening();
+    
+    // Sync storage documents (files from Supabase bucket)
+    setTimeout(() => {
+      if (app.documents && app.documents.syncStorageDocuments) {
+        app.documents.syncStorageDocuments();
+      }
+    }, 1000);
+    
     app.ui.bindGlobalUi();
     requestAnimationFrame(() => app.ui.positionIndicator(document.getElementById('tab-pres')));
   }
