@@ -63,10 +63,7 @@
     if (error) throw error;
 
     if (!data) {
-      const seed = { id: 'main', entries: [], docs: [], pres: state.pres, cfg: state.cfg };
-      const { error: insertError } = await state.sb.from(TABLE_NAME).insert(seed);
-      if (insertError) throw insertError;
-      return seed;
+      return { id: 'main', entries: [], docs: [], pres: state.pres, cfg: state.cfg };
     }
     return data;
   }
