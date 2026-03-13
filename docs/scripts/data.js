@@ -115,7 +115,7 @@
         const code = error && error.code ? error.code : '';
         if (!retryingReadSession && (code.includes('permission') || code.includes('unavailable') || code.includes('network'))) {
           retryingReadSession = true;
-          const ok = await app.authModule.ensureReadSession();
+          const ok = await app.authModule.ensureReadSessionWithSwitch(true);
           if (ok) startListening();
           retryingReadSession = false;
         }

@@ -3,7 +3,7 @@
   const { state } = app;
   const { toast, reportError } = app.utils;
   const FIXED_PASSWORD = 'STI2DD';
-  const READ_ACCOUNT_EMAIL = 'merchagpingouin@gmail.com';
+  const READ_ACCOUNT_EMAILS = ['merchagpingouin@gmail.com', 'portrait.clement08@gmail.com'];
   const LOGIN_ALIASES = {
     STI2DD: 'merchagpingouin@gmail.com',
     STI2D: 'portrait.clement08@gmail.com'
@@ -98,25 +98,45 @@
   }
 
   async function ensureReadSession() {
-    const current = state.auth.currentUser;
-    if (current && current.email) return true;
+    return ensureReadSessionWithSwitch(false);
+  }
 
-    try {
-      state.manualAuth = false;
-      try {
-        await state.auth.signInWithEmailAndPassword(READ_ACCOUNT_EMAIL, FIXED_PASSWORD);
-      } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-          await state.auth.createUserWithEmailAndPassword(READ_ACCOUNT_EMAIL, FIXED_PASSWORD);
-        } else {
-          throw error;
-        }
+  async function ensureReadSessionWithSwitch(forceSwitch = false) {
+    const current = state.auth.currentUser;
+    if (!forceSwitch && current && current.email) return true;
+
+    const candidates = [...READ_ACCOUNT_EMAILS];
+    if (current && current.email) {
+      const idx = candidates.indexOf(current.email);
+      if (idx > -1) {
+        candidates.splice(idx, 1);
+        candidates.push(current.email);
       }
-      return true;
-    } catch (error) {
-      reportError('Lecture distante impossible', error, 'L\'application passe en mode cache local si disponible.');
-      return false;
     }
+
+    state.manualAuth = false;
+    for (const email of candidates) {
+      try {
+        if (state.auth.currentUser) {
+          await state.auth.signOut();
+        }
+        await state.auth.signInWithEmailAndPassword(email, FIXED_PASSWORD);
+        return true;
+      } catch (error) {
+        if (error.code === 'auth/user-not-found' && email === 'merchagpingouin@gmail.com') {
+          try {
+            await state.auth.createUserWithEmailAndPassword(email, FIXED_PASSWORD);
+            return true;
+          } catch {
+            // try next fallback account
+          }
+        }
+        // try next fallback account
+      }
+    }
+
+    reportError('Lecture distante impossible', 'Aucun compte de lecture Firebase utilisable', 'Vérifie les règles Firebase et le mot de passe STI2DD des comptes de lecture.');
+    return false;
   }
 
   async function logout() {
@@ -125,7 +145,7 @@
     toast('✓ Déconnecté');
   }
 
-  app.authModule = { updateAuthUI, openLoginModal, closeLoginModal, submitLogin, ensureReadSession, logout };
+  app.authModule = { updateAuthUI, openLoginModal, closeLoginModal, submitLogin, ensureReadSession, ensureReadSessionWithSwitch, logout };
   window.openLoginModal = openLoginModal;
   window.closeLoginModal = closeLoginModal;
   window.submitLogin = submitLogin;
