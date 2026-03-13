@@ -100,6 +100,12 @@
         </div>
         <button class="btn-add-doc" id="addDocBtn" onclick="openDocModal()" style="display:none">+ Ajouter un document</button>
       </div>
+      <div class="docs-toolbar">
+        <div class="search-wrap docs-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input class="search-input" type="text" id="docSearchInput" placeholder="Rechercher un document, un type ou une note" oninput="renderDocs()">
+        </div>
+      </div>
       <div class="doc-type-filters" id="docTypeFilters">
         <button class="fchip active" onclick="setDocFilter('all',this)">Tout</button>
         <button class="fchip" onclick="setDocFilter('pdf',this)">PDF</button>
@@ -108,6 +114,8 @@
         <button class="fchip" onclick="setDocFilter('image',this)">Image</button>
         <button class="fchip" onclick="setDocFilter('doc',this)">Word</button>
         <button class="fchip" onclick="setDocFilter('link',this)">Lien</button>
+        <button class="fchip" onclick="setDocFilter('schema',this)">Schema structurel</button>
+        <button class="fchip" onclick="setDocFilter('cao',this)">CAO</button>
         <button class="fchip" onclick="setDocFilter('autre',this)">Autre</button>
       </div>
       <div class="docs-grid-full" id="docsGridFull" style="display:none"></div>
@@ -164,6 +172,7 @@
         <option value="pdf">PDF</option><option value="code">Code</option>
         <option value="pptx">Presentation</option><option value="image">Image</option>
         <option value="doc">Document Word</option><option value="link">Lien</option>
+        <option value="schema">Schema structurel</option><option value="cao">CAO</option>
         <option value="autre">Autre</option>
       </select>
     </div>
@@ -201,6 +210,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <!-- Configuration Firebase (à remplir — voir SETUP.md) -->
 <script src="firebase-config.js"></script>
+<script src="scripts/state.js"></script>
+<script src="scripts/utils.js"></script>
+<script src="scripts/data.js"></script>
+<script src="scripts/auth.js"></script>
+<script src="scripts/presentation.js"></script>
+<script src="scripts/journal.js"></script>
+<script src="scripts/documents.js"></script>
+<script src="scripts/settings.js"></script>
+<script src="scripts/ui.js"></script>
+<script src="scripts/main.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
