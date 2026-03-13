@@ -1,8 +1,9 @@
 (() => {
   const app = window.DistrigouttesApp;
   const { state } = app;
-  const { toast } = app.utils;
+  const { toast, reportError } = app.utils;
   const FIXED_PASSWORD = 'STI2DD';
+  const READ_ACCOUNT_EMAIL = 'merchagpingouin@gmail.com';
   const LOGIN_ALIASES = {
     STI2DD: 'merchagpingouin@gmail.com',
     STI2D: 'portrait.clement08@gmail.com'
@@ -57,7 +58,7 @@
     }
 
     if (password !== FIXED_PASSWORD) {
-      toast('⚠ Mot de passe incorrect (attendu : STI2DD)');
+      toast('⚠ Mot de passe incorrect');
       return;
     }
 
@@ -70,6 +71,7 @@
     const btn = document.getElementById('btnLoginSubmit');
     btn.disabled = true;
     btn.textContent = 'Connexion…';
+    state.manualAuth = true;
 
     try {
       try {
@@ -85,20 +87,45 @@
       closeLoginModal();
       toast('✓ Connecté : ' + email);
     } catch (error) {
+      state.manualAuth = false;
       const badCodes = ['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email', 'auth/email-already-in-use'];
       toast('⚠ ' + (badCodes.includes(error.code) ? 'Identifiants incorrects' : 'Erreur : ' + error.code));
+      reportError('Erreur de connexion', error, 'Vérifie l\'email, le mot de passe STI2DD et la connectivité réseau.');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Se connecter';
     }
   }
 
+  async function ensureReadSession() {
+    const current = state.auth.currentUser;
+    if (current && current.email) return true;
+
+    try {
+      state.manualAuth = false;
+      try {
+        await state.auth.signInWithEmailAndPassword(READ_ACCOUNT_EMAIL, FIXED_PASSWORD);
+      } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+          await state.auth.createUserWithEmailAndPassword(READ_ACCOUNT_EMAIL, FIXED_PASSWORD);
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    } catch (error) {
+      reportError('Lecture distante impossible', error, 'L\'application passe en mode cache local si disponible.');
+      return false;
+    }
+  }
+
   async function logout() {
+    state.manualAuth = false;
     await state.auth.signOut();
     toast('✓ Déconnecté');
   }
 
-  app.authModule = { updateAuthUI, openLoginModal, closeLoginModal, submitLogin, logout };
+  app.authModule = { updateAuthUI, openLoginModal, closeLoginModal, submitLogin, ensureReadSession, logout };
   window.openLoginModal = openLoginModal;
   window.closeLoginModal = closeLoginModal;
   window.submitLogin = submitLogin;

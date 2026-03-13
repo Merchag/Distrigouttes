@@ -17,6 +17,8 @@
       author: ''
     },
     authToken: false,
+    manualAuth: false,
+    readSession: false,
     authUser: null,
     activeFilter: 'all',
     activeDocFilter: 'all',

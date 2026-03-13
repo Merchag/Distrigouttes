@@ -1,9 +1,10 @@
 (() => {
   const app = window.DistrigouttesApp;
   const { state } = app;
-  const { toast } = app.utils;
+  const { toast, reportError } = app.utils;
   const LOCAL_CACHE_KEY = 'distrigouttes_snapshot_v1';
   const DOC_FILES_CACHE = 'distrigouttes_docs_files_v1';
+  let retryingReadSession = false;
 
   function saveLocalSnapshot() {
     try {
@@ -97,7 +98,7 @@
         app.journal.renderJournal();
         app.documents.renderDocs();
       },
-      () => {
+      async (error) => {
         const loaded = loadLocalSnapshot();
         if (loaded) {
           applyConfig();
@@ -107,6 +108,16 @@
           toast('⚠ Hors-ligne: affichage des données en cache');
         } else {
           toast('⚠ Erreur de connexion Firebase');
+        }
+
+        reportError('Connexion Firebase échouée', error, 'Clique sur Recharger, ou reconnecte internet.');
+
+        const code = error && error.code ? error.code : '';
+        if (!retryingReadSession && (code.includes('permission') || code.includes('unavailable') || code.includes('network'))) {
+          retryingReadSession = true;
+          const ok = await app.authModule.ensureReadSession();
+          if (ok) startListening();
+          retryingReadSession = false;
         }
       }
     );
@@ -125,6 +136,7 @@
       cacheDocFiles(state.docs);
     } catch {
       toast('⚠ Erreur lors de la sauvegarde');
+      reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Firestore', 'Vérifie la connexion puis réessaie.');
     }
   }
 
