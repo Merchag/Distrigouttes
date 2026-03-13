@@ -148,6 +148,14 @@
     </div>
     <div class="fg"><label>Contenu</label><textarea id="mBody" placeholder="Ce que tu as fait, les obstacles rencontres, les solutions trouvees"></textarea></div>
     <div class="fg"><label>Avancement du projet  <span id="mProgVal">50</span>%</label><input type="range" id="mProg" min="0" max="100" value="50" oninput="document.getElementById('mProgVal').textContent=this.value"></div>
+    <div class="fg" id="entryDocsSection">
+      <label>Documents liés</label>
+      <div class="entry-doc-list" id="entryDocList"></div>
+      <div class="entry-doc-drop" id="entryDocDrop">
+        <span>📎</span>
+        <span id="entryDocDropText">Glisser un fichier pour l'uploader et le lier</span>
+      </div>
+    </div>
     <div class="modal-actions"><button class="btn-cancel2" onclick="closeEntryModal()">Annuler</button><button class="btn-save" onclick="saveEntry()">Enregistrer</button></div>
   </div>
 </div>
@@ -171,8 +179,26 @@
       <p class="doc-drop-text" id="docDropText">Glisse un fichier ici</p>
       <p class="doc-drop-sub">ou clique pour choisir un fichier</p>
       <div class="doc-drop-progress" id="docUploadProgress" style="display:none">
-        <div class="doc-drop-bar-outer"><div class="doc-drop-bar" id="docUploadBar"></div></div>
-        <span class="doc-drop-pct" id="docUploadPct">0%</span>
+        <div class="flask-wrap">
+          <svg class="flask-svg" viewBox="0 0 40 76" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="flaskClipPath">
+                <path d="M16,0 L16,24 Q0,34 0,56 A20,20 0 0 0 40,56 Q40,34 24,24 L24,0 Z"/>
+              </clipPath>
+            </defs>
+            <path class="flask-bg" d="M16,0 L16,24 Q0,34 0,56 A20,20 0 0 0 40,56 Q40,34 24,24 L24,0 Z"/>
+            <g clip-path="url(#flaskClipPath)">
+              <rect id="flaskLiquid" x="0" y="76" width="40" height="76" fill="var(--accent2)" opacity="0.85"/>
+              <path id="flaskWavePath" class="flask-wave-anim" d="M-40,76 Q-20,72 0,76 Q20,80 40,76 Q60,72 80,76 L80,152 L-40,152 Z" fill="var(--accent2)" opacity="0.85"/>
+            </g>
+            <path class="flask-outline" d="M16,0 L16,24 Q0,34 0,56 A20,20 0 0 0 40,56 Q40,34 24,24 L24,0 Z"/>
+            <line x1="24" y1="34" x2="30" y2="34" class="flask-mark"/>
+            <line x1="24" y1="44" x2="27" y2="44" class="flask-mark"/>
+            <line x1="24" y1="54" x2="30" y2="54" class="flask-mark"/>
+          </svg>
+          <span class="flask-pct-label" id="docUploadPct">0%</span>
+        </div>
+        <p class="flask-upload-label">Téléversement en cours…</p>
       </div>
     </div>
     <div class="fg"><label>Nom du document</label><input type="text" id="docName" placeholder="Ex : Rapport final, Diagramme UML"></div>
@@ -206,9 +232,9 @@
   <div class="modal modal-login">
     <div class="modal-header"><h2>Connexion</h2><button class="modal-x" onclick="closeLoginModal()">&times;</button></div>
     <div class="login-lock">&#128274;</div>
-    <p class="login-sub">Connectez-vous avec le compte STI2D pour modifier le site.</p>
-    <div class="fg"><label>Identifiant</label><input type="text" id="loginUser" placeholder="Ex : STI2D" autocomplete="username"></div>
-    <div class="fg"><label>Mot de passe</label><input type="password" id="loginPass" placeholder="Mot de passe" autocomplete="current-password"></div>
+    <p class="login-sub">Connectez-vous avec un identifiant (ex: STI2DD) ou un email Firebase. Mot de passe: STI2DD.</p>
+    <div class="fg"><label>Identifiant ou email</label><input type="text" id="loginUser" placeholder="Ex : STI2DD ou utilisateur@email.com" autocomplete="username"></div>
+    <div class="fg"><label>Mot de passe</label><input type="password" id="loginPass" placeholder="STI2DD" autocomplete="current-password"></div>
     <div class="modal-actions"><button class="btn-save" id="btnLoginSubmit" onclick="submitLogin()">Se connecter</button></div>
   </div>
 </div>

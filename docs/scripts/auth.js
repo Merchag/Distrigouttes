@@ -2,6 +2,22 @@
   const app = window.DistrigouttesApp;
   const { state } = app;
   const { toast } = app.utils;
+  const FIXED_PASSWORD = 'STI2DD';
+  const LOGIN_ALIASES = {
+    STI2DD: 'merchagpingouin@gmail.com',
+    STI2D: 'portrait.clement08@gmail.com'
+  };
+
+  function resolveLoginEmail(rawLogin) {
+    const value = (rawLogin || '').trim();
+    const upper = value.toUpperCase();
+    if (LOGIN_ALIASES[upper]) return LOGIN_ALIASES[upper];
+    return value;
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
 
   function updateAuthUI() {
     const loggedIn = !!state.authToken;
@@ -32,15 +48,22 @@
   }
 
   async function submitLogin() {
-    const username = document.getElementById('loginUser').value.trim();
+    const login = document.getElementById('loginUser').value.trim();
     const password = document.getElementById('loginPass').value;
 
-    if (!username || !password) {
+    if (!login || !password) {
       toast('⚠ Remplis tous les champs');
       return;
     }
-    if (username.toUpperCase() !== 'STI2D') {
-      toast('⚠ Identifiants incorrects');
+
+    if (password !== FIXED_PASSWORD) {
+      toast('⚠ Mot de passe incorrect (attendu : STI2DD)');
+      return;
+    }
+
+    const email = resolveLoginEmail(login);
+    if (!isValidEmail(email)) {
+      toast('⚠ Entre un identifiant valide ou une adresse email');
       return;
     }
 
@@ -49,11 +72,20 @@
     btn.textContent = 'Connexion…';
 
     try {
-      await state.auth.signInWithEmailAndPassword('portrait.clement08@gmail.com', password);
+      try {
+        await state.auth.signInWithEmailAndPassword(email, password);
+      } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+          await state.auth.createUserWithEmailAndPassword(email, FIXED_PASSWORD);
+        } else {
+          throw error;
+        }
+      }
+
       closeLoginModal();
-      toast('✓ Connecté en tant que STI2D');
+      toast('✓ Connecté : ' + email);
     } catch (error) {
-      const badCodes = ['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email'];
+      const badCodes = ['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email', 'auth/email-already-in-use'];
       toast('⚠ ' + (badCodes.includes(error.code) ? 'Identifiants incorrects' : 'Erreur : ' + error.code));
     } finally {
       btn.disabled = false;

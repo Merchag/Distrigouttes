@@ -3,6 +3,7 @@
   const { state, constants } = app;
   const { MONTHS, TAG_LABELS } = constants;
   const { esc, toast } = app.utils;
+  const { DOC_ICONS } = constants;
 
   function setFilter(filter, btn) {
     state.activeFilter = filter;
@@ -47,6 +48,14 @@
             </div>` : ''}
           </div>
           <div class="ec-body collapsed" id="body-${entry.id}">${esc(entry.body)}</div>
+          ${(() => {
+            const linked = (entry.linkedDocs || []).map(id => state.docs.find(d => d.id === id)).filter(Boolean);
+            return linked.length
+              ? `<div class="ec-linked-docs">${linked.map(doc =>
+                  `<a class="ec-doc-chip" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</a>`
+                ).join('')}</div>`
+              : '';
+          })()}
           <button class="ec-expand" id="exp-${entry.id}" onclick="toggleBody(${entry.id})"><span class="ec-expand-arrow">▼</span> Lire la suite</button>
         </div>`;
       })
@@ -102,6 +111,74 @@
     }
 
     document.getElementById('entryOverlay').classList.add('open');
+    // Populate linked doc chips
+    const list = document.getElementById('entryDocList');
+    if (list) {
+      const linkedIds = (id !== null ? (state.entries.find(x => x.id === id)?.linkedDocs || []) : []);
+      list.innerHTML = state.docs.length
+        ? state.docs.map(doc =>
+            `<button class="doc-link-chip${linkedIds.includes(doc.id) ? ' selected' : ''}" data-doc-id="${doc.id}" onclick="this.classList.toggle('selected')">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</button>`
+          ).join('')
+        : `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">Aucun document disponible</span>`;
+    }
+
+    // Bind mini drop zone for uploading a new file and linking it
+    const dropZone = document.getElementById('entryDocDrop');
+    if (dropZone && !dropZone._bound) {
+      dropZone._bound = true;
+      const hiddenInput = document.createElement('input');
+      hiddenInput.type = 'file';
+      hiddenInput.style.display = 'none';
+      document.body.appendChild(hiddenInput);
+
+      const handleEntryFile = async file => {
+        const textEl = document.getElementById('entryDocDropText');
+        const docs = app.documents;
+        if (!docs) return;
+        const type = docs.detectDocType(file.name);
+        const name = file.name.replace(/\.[^.]+$/, '');
+        dropZone.classList.add('uploading');
+        textEl.textContent = 'Téléversement…';
+        try {
+          const url = await docs.uploadFile(file);
+          const newDoc = { id: Date.now(), name, type, note: '', url };
+          state.docs.push(newDoc);
+          await app.data.pushData();
+          // add chip and select it
+          const list2 = document.getElementById('entryDocList');
+          const chip = document.createElement('button');
+          chip.className = 'doc-link-chip selected';
+          chip.dataset.docId = newDoc.id;
+          chip.onclick = () => chip.classList.toggle('selected');
+          chip.textContent = (DOC_ICONS[type] || '📁') + ' ' + name;
+          if (list2) list2.appendChild(chip);
+          textEl.textContent = '✓ Lié !';
+          setTimeout(() => { textEl.textContent = 'Glisser un fichier pour l\'uploader et le lier'; }, 2000);
+          toast('✓ Document ajouté et lié');
+        } catch {
+          textEl.textContent = 'Erreur – réessayez';
+          setTimeout(() => { textEl.textContent = 'Glisser un fichier pour l\'uploader et le lier'; }, 2000);
+          toast('⚠ Erreur upload');
+        } finally {
+          dropZone.classList.remove('uploading');
+        }
+      };
+
+      dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) handleEntryFile(file);
+      });
+      dropZone.addEventListener('click', () => hiddenInput.click());
+      hiddenInput.addEventListener('change', () => {
+        if (hiddenInput.files[0]) handleEntryFile(hiddenInput.files[0]);
+        hiddenInput.value = '';
+      });
+    }
+
     setTimeout(() => document.getElementById('mTitle').focus(), 150);
   }
 
@@ -142,11 +219,13 @@
     }
 
     if (state.editingId !== null) {
+      const linkedDocs = [...document.querySelectorAll('.doc-link-chip.selected')].map(c => parseInt(c.dataset.docId, 10));
       const index = state.entries.findIndex(item => item.id === state.editingId);
-      if (index !== -1) state.entries[index] = { ...state.entries[index], title, date, body, progress, tag };
+      if (index !== -1) state.entries[index] = { ...state.entries[index], title, date, body, progress, tag, linkedDocs };
       toast('✓ Note modifiée');
     } else {
-      state.entries.push({ id: Date.now(), title, date, body, progress, tag });
+      const linkedDocs = [...document.querySelectorAll('.doc-link-chip.selected')].map(c => parseInt(c.dataset.docId, 10));
+      state.entries.push({ id: Date.now(), title, date, body, progress, tag, linkedDocs });
       toast('✓ Note ajoutée');
     }
 

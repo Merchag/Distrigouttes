@@ -21,35 +21,87 @@
     return EXT_TO_TYPE[ext] || 'autre';
   }
 
+  async function openDocFile(url, name = 'document', forceDownload = false) {
+    if (!url) return false;
+
+    if (navigator.onLine) {
+      if (forceDownload) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      return false;
+    }
+
+    try {
+      if (!('caches' in window)) {
+        toast('⚠ Mode hors-ligne indisponible sur ce navigateur');
+        return false;
+      }
+
+      const cacheNames = await caches.keys();
+      let response = null;
+      for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName);
+        response = await cache.match(url);
+        if (response) break;
+      }
+
+      if (!response) {
+        toast('⚠ Fichier non disponible hors-ligne sur ce PC');
+        return false;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = name;
+      if (!forceDownload) link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      return false;
+    } catch {
+      toast('⚠ Impossible d\'ouvrir le document hors-ligne');
+      return false;
+    }
+  }
+
   // ── FILE UPLOAD TO FIREBASE STORAGE ──
-  function uploadFile(file) {
+  function setFlaskLevel(pct, pctEl) {
+    const ly = 76 * (1 - pct / 100);
+    const liquid = document.getElementById('flaskLiquid');
+    const wave   = document.getElementById('flaskWavePath');
+    if (liquid) liquid.setAttribute('y', ly);
+    if (wave)   wave.setAttribute('d',
+      `M-40,${ly} Q-20,${ly - 4} 0,${ly} Q20,${ly + 4} 40,${ly} Q60,${ly - 4} 80,${ly} L80,152 L-40,152 Z`);
+    if (pctEl)  pctEl.textContent = pct + '%';
+  }
+
+  function uploadFile(file, opts = {}) {
+    // opts: { onProgress, liquidId, waveId, pctId }
     return new Promise((resolve, reject) => {
       const fileRef = firebase.storage().ref().child('documents/' + Date.now() + '_' + file.name);
       const task = fileRef.put(file);
-      const progressEl = document.getElementById('docUploadProgress');
-      const barEl = document.getElementById('docUploadBar');
-      const pctEl = document.getElementById('docUploadPct');
-      const zone = document.getElementById('docDropZone');
-
-      progressEl.style.display = 'flex';
-      zone.classList.add('uploading');
 
       task.on(
         'state_changed',
         snap => {
           const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-          barEl.style.width = pct + '%';
-          pctEl.textContent = pct + '%';
+          if (opts.onProgress) opts.onProgress(pct);
         },
-        err => {
-          progressEl.style.display = 'none';
-          zone.classList.remove('uploading');
-          reject(err);
-        },
+        reject,
         async () => {
           const url = await task.snapshot.ref.getDownloadURL();
-          progressEl.style.display = 'none';
-          zone.classList.remove('uploading');
           resolve(url);
         }
       );
@@ -59,27 +111,36 @@
   function handleFileDrop(file) {
     if (!state.authToken) { toast('⚠ Connectez-vous pour uploader'); return; }
 
-    const zone = document.getElementById('docDropZone');
-    const textEl = document.getElementById('docDropText');
+    const zone      = document.getElementById('docDropZone');
+    const textEl    = document.getElementById('docDropText');
+    const progressEl = document.getElementById('docUploadProgress');
+    const pctEl     = document.getElementById('docUploadPct');
     zone.classList.remove('drag-over', 'uploaded');
 
     const nameInput = document.getElementById('docName');
-    if (!nameInput.value.trim()) {
-      nameInput.value = file.name.replace(/\.[^.]+$/, '');
-    }
+    if (!nameInput.value.trim()) nameInput.value = file.name.replace(/\.[^.]+$/, '');
     document.getElementById('docType').value = detectDocType(file.name);
-    textEl.textContent = 'Upload en cours…';
+    textEl.textContent = 'Téléversement en cours…';
+    progressEl.style.display = 'flex';
+    zone.classList.add('uploading');
+    setFlaskLevel(0, pctEl);
 
-    uploadFile(file)
+    uploadFile(file, {
+      onProgress: pct => setFlaskLevel(pct, pctEl)
+    })
       .then(url => {
         document.getElementById('docUrl').value = url;
-        textEl.textContent = '✓ ' + file.name + ' uploadé !';
+        textEl.textContent = '✓ ' + file.name + ' téléversé !';
+        zone.classList.remove('uploading');
         zone.classList.add('uploaded');
-        toast('✓ Fichier uploadé');
+        setTimeout(() => { progressEl.style.display = 'none'; }, 600);
+        toast('✓ Fichier téléversé');
       })
       .catch(() => {
         textEl.textContent = 'Glisse un fichier ici';
-        toast('⚠ Erreur lors de l\'upload');
+        zone.classList.remove('uploading');
+        progressEl.style.display = 'none';
+        toast('⚠ Erreur lors du téléversement');
       });
   }
 
@@ -160,7 +221,10 @@
           </div>
           <div class="doc-card-name">${esc(doc.name)}</div>
           ${doc.note ? `<div class="doc-card-note">${esc(doc.note)}</div>` : ''}
-          ${doc.url ? `<a class="doc-card-link" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer">Ouvrir ↗</a>` : ''}
+          ${doc.url ? `<div class="doc-card-actions">
+            <a class="doc-card-link" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer" onclick="return openDocFile('${esc(doc.url)}','${esc(doc.name)}',false)">Ouvrir ↗</a>
+            <a class="doc-card-link doc-card-dl" href="${esc(doc.url)}" download="${esc(doc.name)}" rel="noopener noreferrer" onclick="return openDocFile('${esc(doc.url)}','${esc(doc.name)}',true)">⬇ Télécharger</a>
+          </div>` : ''}
           ${state.authToken ? `<button class="doc-del" onclick="deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
         </div>`)
       .join('');
@@ -176,7 +240,7 @@
       zone.classList.remove('drag-over', 'uploaded', 'uploading');
       document.getElementById('docDropText').textContent = 'Glisse un fichier ici';
       document.getElementById('docUploadProgress').style.display = 'none';
-      document.getElementById('docUploadBar').style.width = '0';
+      setFlaskLevel(0, document.getElementById('docUploadPct'));
     }
     document.getElementById('docOverlay').classList.add('open');
   }
@@ -221,11 +285,12 @@
 
   bindDropZone();
 
-  app.documents = { setDocFilter, renderDocs, openDocModal, closeDocModal, saveDoc, deleteDoc };
-  window.setDocFilter = setDocFilter;
-  window.renderDocs = renderDocs;
-  window.openDocModal = openDocModal;
-  window.closeDocModal = closeDocModal;
-  window.saveDoc = saveDoc;
-  window.deleteDoc = deleteDoc;
+  app.documents = { setDocFilter, renderDocs, openDocModal, closeDocModal, saveDoc, deleteDoc, uploadFile, detectDocType, openDocFile };
+  window.setDocFilter    = setDocFilter;
+  window.renderDocs      = renderDocs;
+  window.openDocModal    = openDocModal;
+  window.closeDocModal   = closeDocModal;
+  window.saveDoc         = saveDoc;
+  window.deleteDoc       = deleteDoc;
+  window.openDocFile     = openDocFile;
 })();

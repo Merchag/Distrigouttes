@@ -163,11 +163,33 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',
 .doc-drop-text{font-size:13px;font-weight:700;color:var(--text);text-align:center;}
 .doc-drop-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-align:center;}
 .doc-drop-progress{width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:4px;}
-.doc-drop-bar-outer{width:100%;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
-.doc-drop-bar{height:100%;background:var(--accent2);border-radius:2px;width:0;transition:width .1s linear;}
-.doc-drop-pct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+/* Flask upload animation */
+.flask-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;}
+.flask-svg{width:56px;height:auto;filter:drop-shadow(0 4px 14px rgba(79,158,248,.35));}
+.flask-bg{fill:var(--surface3);}
+.flask-outline{fill:none;stroke:var(--border2);stroke-width:1.5;}
+.flask-mark{stroke:var(--border2);stroke-width:.8;}
+.flask-wave-anim{animation:waveSlide 1.8s linear infinite;}
+@keyframes waveSlide{from{transform:translateX(0)}to{transform:translateX(40px)}}
+.flask-pct-label{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--accent2);}
+.flask-upload-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin:0;}
+.doc-card-actions{display:flex;flex-direction:column;gap:5px;}
+.doc-card-dl{color:var(--green) !important;border-color:rgba(95,212,160,.25) !important;}
+.doc-card-dl:hover{background:rgba(95,212,160,.1) !important;border-color:var(--green) !important;}
 
 /* MODALS */
+/* Entry modal – linked docs */
+.entry-doc-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px;}
+.doc-link-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;}
+.doc-link-chip:hover{border-color:var(--accent2);color:var(--text);}
+.doc-link-chip.selected{border-color:var(--accent2);background:rgba(79,158,248,.1);color:var(--accent2);}
+.entry-doc-drop{border:1px dashed var(--border2);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);transition:all .2s;}
+.entry-doc-drop:hover,.entry-doc-drop.drag-over{border-color:var(--accent2);color:var(--accent2);background:rgba(79,158,248,.04);}
+.entry-doc-drop.uploading{opacity:.6;pointer-events:none;}
+/* Journal card – linked doc chips */
+.ec-linked-docs{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.ec-doc-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;border:1px solid rgba(79,158,248,.25);background:rgba(79,158,248,.05);color:var(--accent2);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:10px;transition:all .15s;}
+.ec-doc-chip:hover{background:rgba(79,158,248,.12);border-color:var(--accent2);}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(0px);transition:background .25s,backdrop-filter .25s;}
 .overlay.open{display:flex;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);}
 .modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:min(560px,94vw);max-height:90vh;overflow-y:auto;padding:32px;box-shadow:0 32px 80px rgba(0,0,0,.6);transform:scale(.9) translateY(20px);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s ease;}
