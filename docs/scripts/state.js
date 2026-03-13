@@ -2,6 +2,7 @@
   const app = window.DistrigouttesApp || {};
 
   app.state = {
+    sb: null,
     db: null,
     auth: null,
     docRef: null,

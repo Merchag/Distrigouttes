@@ -266,20 +266,17 @@
   <div class="modal modal-login">
     <div class="modal-header"><h2>Connexion</h2><button class="modal-x" onclick="closeLoginModal()">&times;</button></div>
     <div class="login-lock">&#128274;</div>
-    <p class="login-sub">Connectez-vous avec un identifiant ou un email Firebase.</p>
+    <p class="login-sub">Connectez-vous avec un identifiant ou un email Supabase.</p>
     <div class="fg"><label>Identifiant ou email</label><input type="text" id="loginUser" placeholder="Ex : STI2DD ou utilisateur@email.com" autocomplete="username"></div>
     <div class="fg"><label>Mot de passe</label><input type="password" id="loginPass" placeholder="******" autocomplete="current-password"></div>
     <div class="modal-actions"><button class="btn-save" id="btnLoginSubmit" onclick="submitLogin()">Se connecter</button></div>
   </div>
 </div>
 
-<!-- Firebase SDK compat v10 (CDN – pas besoin de Node.js) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
-<!-- Configuration Firebase (à remplir — voir SETUP.md) -->
-<script src="firebase-config.js"></script>
+<!-- Supabase SDK (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Configuration Supabase -->
+<script src="supabase-config.js"></script>
 <script src="scripts/state.js"></script>
 <script src="scripts/utils.js"></script>
 <script src="scripts/data.js"></script>

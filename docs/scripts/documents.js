@@ -3,6 +3,7 @@
   const { state, constants } = app;
   const { DOC_ICONS, DOC_LABELS } = constants;
   const { esc, toast, reportError } = app.utils;
+  const SUPABASE_BUCKET = 'documents';
 
   // ── TYPE DETECTION BY FILE EXTENSION ──
   const EXT_TO_TYPE = {
@@ -19,20 +20,6 @@
   function detectDocType(fileName) {
     const ext = fileName.split('.').pop().toLowerCase();
     return EXT_TO_TYPE[ext] || 'autre';
-  }
-
-  function getStorageInstance() {
-    try {
-      const baseApp = firebase.app();
-      const bucket = (baseApp.options && baseApp.options.storageBucket) || '';
-      if (bucket.endsWith('.firebasestorage.app')) {
-        const altBucket = bucket.replace('.firebasestorage.app', '.appspot.com');
-        return firebase.app().storage(`gs://${altBucket}`);
-      }
-    } catch {
-      // fallback below
-    }
-    return firebase.storage();
   }
 
   function isPreviewable(doc) {
@@ -124,7 +111,7 @@
     }
   }
 
-  // ── FILE UPLOAD TO FIREBASE STORAGE ──
+  // ── FILE UPLOAD TO SUPABASE STORAGE ──
   function setFlaskLevel(pct, pctEl) {
     const ly = 76 * (1 - pct / 100);
     const liquid = document.getElementById('flaskLiquid');
@@ -138,22 +125,22 @@
   function uploadFile(file, opts = {}) {
     // opts: { onProgress, liquidId, waveId, pctId }
     return new Promise((resolve, reject) => {
-      const storage = getStorageInstance();
-      const fileRef = storage.ref().child('documents/' + Date.now() + '_' + file.name);
-      const task = fileRef.put(file);
+      if (opts.onProgress) opts.onProgress(20);
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = 'documents/' + Date.now() + '_' + safeName;
 
-      task.on(
-        'state_changed',
-        snap => {
-          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-          if (opts.onProgress) opts.onProgress(pct);
-        },
-        reject,
-        async () => {
-          const url = await task.snapshot.ref.getDownloadURL();
-          resolve(url);
-        }
-      );
+      state.sb.storage
+        .from(SUPABASE_BUCKET)
+        .upload(filePath, file, { upsert: false })
+        .then(({ error }) => {
+          if (error) throw error;
+          if (opts.onProgress) opts.onProgress(90);
+          const { data } = state.sb.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
+          if (!data || !data.publicUrl) throw new Error('Public URL introuvable');
+          if (opts.onProgress) opts.onProgress(100);
+          resolve(data.publicUrl);
+        })
+        .catch(reject);
     });
   }
 
@@ -191,9 +178,9 @@
         progressEl.style.display = 'none';
         toast('⚠ Erreur lors du téléversement');
         reportError(
-          'Téléversement Firebase échoué',
+          'Téléversement Supabase échoué',
           error,
-          'Vérifie Firebase Storage (Rules + bucket). Règle minimale: allow read: if true; allow write: if request.auth != null;'
+          'Vérifie Supabase Storage: bucket public "documents" + policy INSERT pour authenticated + clé anon correcte.'
         );
       });
   }

@@ -5,7 +5,7 @@ const APP_SHELL = [
   './index.html',
   './style.css',
   './app.js',
-  './firebase-config.js',
+  './supabase-config.js',
   './scripts/state.js',
   './scripts/utils.js',
   './scripts/data.js',

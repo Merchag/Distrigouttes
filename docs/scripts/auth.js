@@ -75,10 +75,14 @@
 
     try {
       try {
-        await state.auth.signInWithEmailAndPassword(email, password);
+        const { error } = await state.sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
       } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-          await state.auth.createUserWithEmailAndPassword(email, FIXED_PASSWORD);
+        if (String(error.message || '').toLowerCase().includes('invalid login credentials')) {
+          const { error: signUpError } = await state.sb.auth.signUp({ email, password: FIXED_PASSWORD });
+          if (signUpError) throw signUpError;
+          const { error: signInError } = await state.sb.auth.signInWithPassword({ email, password: FIXED_PASSWORD });
+          if (signInError) throw signInError;
         } else {
           throw error;
         }
@@ -120,15 +124,18 @@
     state.manualAuth = false;
     for (const email of candidates) {
       try {
-        if (state.auth.currentUser) {
-          await state.auth.signOut();
-        }
-        await state.auth.signInWithEmailAndPassword(email, FIXED_PASSWORD);
+        await state.sb.auth.signOut();
+        const { error } = await state.sb.auth.signInWithPassword({ email, password: FIXED_PASSWORD });
+        if (error) throw error;
         return true;
       } catch (error) {
-        if (error.code === 'auth/user-not-found' && email === 'merchagpingouin@gmail.com') {
+        const msg = String(error.message || '').toLowerCase();
+        if (msg.includes('invalid login credentials') && email === 'merchagpingouin@gmail.com') {
           try {
-            await state.auth.createUserWithEmailAndPassword(email, FIXED_PASSWORD);
+            const { error: signUpError } = await state.sb.auth.signUp({ email, password: FIXED_PASSWORD });
+            if (signUpError) throw signUpError;
+            const { error: signInError } = await state.sb.auth.signInWithPassword({ email, password: FIXED_PASSWORD });
+            if (signInError) throw signInError;
             return true;
           } catch {
             // try next fallback account
@@ -144,7 +151,7 @@
 
   async function logout() {
     state.manualAuth = false;
-    await state.auth.signOut();
+    await state.sb.auth.signOut();
     toast('✓ Déconnecté');
   }
 

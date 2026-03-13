@@ -3,7 +3,7 @@
   const { state } = app;
 
   async function init() {
-    app.data.initFirebase();
+    app.data.initSupabase();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(() => {
@@ -11,7 +11,8 @@
       });
     }
 
-    state.auth.onAuthStateChanged(user => {
+    state.sb.auth.onAuthStateChange((_event, session) => {
+      const user = session ? session.user : null;
       state.readSession = !!user;
       state.authToken = !!user && !!state.manualAuth;
       state.authUser = state.authToken ? (user.email || 'STI2D') : null;

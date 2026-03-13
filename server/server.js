@@ -6,10 +6,12 @@ const path     = require('path');
 const cors     = require('cors');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const multer   = require('multer');
 
 const app        = express();
 const PORT       = process.env.PORT || 3000;
 const DATA_FILE  = path.join(__dirname, 'data.json');
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
 // En production, définir la variable d'environnement JWT_SECRET
 const JWT_SECRET = process.env.JWT_SECRET || 'dg_jwt_s3cr3t_2024_xK9mPqR';
 
@@ -43,12 +45,26 @@ function writeData(data) {
 
 // Initialise data.json s'il n'existe pas
 if (!fs.existsSync(DATA_FILE)) writeData(DEFAULT_DATA);
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+  filename: (_req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, Date.now() + '_' + safeName);
+  }
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 40 * 1024 * 1024 }
+});
 
 // ── MIDDLEWARES ──
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '2mb' }));
 // Sert les fichiers statiques du frontend
 app.use(express.static(path.join(__dirname, '..', 'docs')));
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ── MIDDLEWARE D'AUTHENTIFICATION ──
 function requireAuth(req, res, next) {
@@ -82,6 +98,13 @@ app.post('/api/login', (req, res) => {
 // GET /api/data — lecture publique (tous les appareils voient les données)
 app.get('/api/data', (_req, res) => {
   res.json(readData());
+});
+
+// POST /api/upload — upload fichier vers stockage local serveur
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Fichier manquant' });
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ ok: true, url: fileUrl, name: req.file.originalname, size: req.file.size });
 });
 
 // POST /api/data — écriture protégée (compte STI2D requis)

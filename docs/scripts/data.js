@@ -3,7 +3,7 @@
   const { state } = app;
   const { toast, reportError } = app.utils;
   const LOCAL_CACHE_KEY = 'distrigouttes_snapshot_v1';
-  const DOC_FILES_CACHE = 'distrigouttes_docs_files_v1';
+  const TABLE_NAME = 'app_data';
   let retryingReadSession = false;
 
   function saveLocalSnapshot() {
@@ -35,42 +35,41 @@
     }
   }
 
-  async function cacheDocFiles(docs) {
-    if (!('caches' in window)) return;
-    try {
-      const cache = await caches.open(DOC_FILES_CACHE);
-      await Promise.all(
-        (docs || [])
-          .filter(doc => doc && doc.url)
-          .map(async doc => {
-            const existing = await cache.match(doc.url);
-            if (existing) return;
-            const response = await fetch(doc.url, { mode: 'no-cors' });
-            await cache.put(doc.url, response);
-          })
-      );
-    } catch {
-      // some browsers/storage URLs may not be cacheable
+  function initSupabase() {
+    if (!window.supabase || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      reportError('Supabase non configuré', 'Variables manquantes', 'Renseigne SUPABASE_URL et SUPABASE_ANON_KEY dans supabase-config.js');
+      throw new Error('Supabase config missing');
     }
-  }
-
-  function initFirebase() {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    state.db = firebase.firestore();
-    try {
-      state.db.settings({
-        experimentalAutoDetectLongPolling: true,
-        useFetchStreams: false
-      });
-    } catch {
-      // ignore unsupported settings on some environments
-    }
-    state.auth = firebase.auth();
-    state.docRef = state.db.collection('distrigouttes').doc('main');
+    state.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   function applyConfig() {
     document.getElementById('topProjName').textContent = state.cfg.proj || 'Distrigouttes';
+  }
+
+  function applyRemoteRow(row) {
+    state.entries = row.entries || [];
+    state.docs = row.docs || [];
+    state.pres = row.pres || state.pres;
+    state.cfg = row.cfg || state.cfg;
+  }
+
+  async function fetchRemoteData() {
+    const { data, error } = await state.sb
+      .from(TABLE_NAME)
+      .select('id, entries, docs, pres, cfg')
+      .eq('id', 'main')
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      const seed = { id: 'main', entries: [], docs: [], pres: state.pres, cfg: state.cfg };
+      const { error: insertError } = await state.sb.from(TABLE_NAME).insert(seed);
+      if (insertError) throw insertError;
+      return seed;
+    }
+    return data;
   }
 
   function startListening() {
@@ -81,24 +80,16 @@
       app.documents.renderDocs();
     }
 
-    if (state.unsubSnapshot) state.unsubSnapshot();
-    state.unsubSnapshot = state.docRef.onSnapshot(
-      snap => {
-        if (snap.exists) {
-          const data = snap.data();
-          state.entries = data.entries || [];
-          state.docs = data.docs || [];
-          state.pres = data.pres || state.pres;
-          state.cfg = data.cfg || state.cfg;
-          saveLocalSnapshot();
-          cacheDocFiles(state.docs);
-        }
+    const hydrate = async () => {
+      try {
+        const row = await fetchRemoteData();
+        applyRemoteRow(row);
+        saveLocalSnapshot();
         applyConfig();
         app.presentation.renderPres();
         app.journal.renderJournal();
         app.documents.renderDocs();
-      },
-      async (error) => {
+      } catch (error) {
         const loaded = loadLocalSnapshot();
         if (loaded) {
           applyConfig();
@@ -107,46 +98,57 @@
           app.documents.renderDocs();
           toast('⚠ Hors-ligne: affichage des données en cache');
         } else {
-          toast('⚠ Erreur de connexion Firebase');
+          toast('⚠ Erreur de connexion Supabase');
         }
 
-        const code = error && error.code ? error.code : '';
-        if (code.includes('permission')) {
-          reportError(
-            'Permission Firestore refusée',
-            error,
-            'Firebase Console > Firestore Database > Rules: autorise au moins read pour /distrigouttes/main.'
-          );
-        } else {
-          reportError('Connexion Firebase échouée', error, 'Clique sur Recharger, ou reconnecte internet.');
-        }
-
-        if (!retryingReadSession && (code.includes('permission') || code.includes('unavailable') || code.includes('network'))) {
+        reportError('Connexion Supabase échouée', error, 'Vérifie les policies RLS, URL, clé anon et la connexion internet.');
+        const msg = String((error && (error.code || error.message)) || '').toLowerCase();
+        if (!retryingReadSession && (msg.includes('permission') || msg.includes('forbidden') || msg.includes('network') || msg.includes('jwt'))) {
           retryingReadSession = true;
           const ok = await app.authModule.ensureReadSessionWithSwitch(true);
-          if (ok) startListening();
+          if (ok) await hydrate();
           retryingReadSession = false;
         }
       }
-    );
+    };
+
+    hydrate();
+
+    if (state.unsubSnapshot) state.unsubSnapshot();
+    const channel = state.sb
+      .channel('distrigouttes-main-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME, filter: 'id=eq.main' }, payload => {
+        if (payload.new) {
+          applyRemoteRow(payload.new);
+          saveLocalSnapshot();
+          applyConfig();
+          app.presentation.renderPres();
+          app.journal.renderJournal();
+          app.documents.renderDocs();
+        }
+      })
+      .subscribe();
+
+    state.unsubSnapshot = () => state.sb.removeChannel(channel);
   }
 
   async function pushData() {
     if (!state.authToken) return;
     try {
-      await state.docRef.set({
+      const { error } = await state.sb.from(TABLE_NAME).upsert({
+        id: 'main',
         entries: state.entries,
         docs: state.docs,
         pres: state.pres,
         cfg: state.cfg
       });
+      if (error) throw error;
       saveLocalSnapshot();
-      cacheDocFiles(state.docs);
     } catch {
       toast('⚠ Erreur lors de la sauvegarde');
-      reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Firestore', 'Vérifie la connexion puis réessaie.');
+      reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Supabase', 'Vérifie la policy UPDATE/INSERT sur app_data puis réessaie.');
     }
   }
 
-  app.data = { initFirebase, applyConfig, startListening, pushData };
+  app.data = { initSupabase, applyConfig, startListening, pushData };
 })();
