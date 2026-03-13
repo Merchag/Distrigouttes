@@ -56,6 +56,14 @@
   function initFirebase() {
     firebase.initializeApp(FIREBASE_CONFIG);
     state.db = firebase.firestore();
+    try {
+      state.db.settings({
+        experimentalAutoDetectLongPolling: true,
+        useFetchStreams: false
+      });
+    } catch {
+      // ignore unsupported settings on some environments
+    }
     state.auth = firebase.auth();
     state.docRef = state.db.collection('distrigouttes').doc('main');
   }
