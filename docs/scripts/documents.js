@@ -2,7 +2,7 @@
   const app = window.DistrigouttesApp;
   const { state, constants } = app;
   const { DOC_ICONS, DOC_LABELS } = constants;
-  const { esc, toast } = app.utils;
+  const { esc, toast, reportError } = app.utils;
 
   // ── TYPE DETECTION BY FILE EXTENSION ──
   const EXT_TO_TYPE = {
@@ -19,6 +19,54 @@
   function detectDocType(fileName) {
     const ext = fileName.split('.').pop().toLowerCase();
     return EXT_TO_TYPE[ext] || 'autre';
+  }
+
+  function getStorageInstance() {
+    try {
+      const baseApp = firebase.app();
+      const bucket = (baseApp.options && baseApp.options.storageBucket) || '';
+      if (bucket.endsWith('.firebasestorage.app')) {
+        const altBucket = bucket.replace('.firebasestorage.app', '.appspot.com');
+        return firebase.app().storage(`gs://${altBucket}`);
+      }
+    } catch {
+      // fallback below
+    }
+    return firebase.storage();
+  }
+
+  function isPreviewable(doc) {
+    return ['pdf', 'image', 'code', 'doc', 'link'].includes(doc.type);
+  }
+
+  function openDocPreview(id) {
+    const doc = state.docs.find(item => item.id === id);
+    if (!doc || !doc.url) return;
+
+    const overlay = document.getElementById('docPreviewOverlay');
+    const title = document.getElementById('docPreviewTitle');
+    const frame = document.getElementById('docPreviewFrame');
+    const fallback = document.getElementById('docPreviewFallback');
+    const openBtn = document.getElementById('docPreviewOpenBtn');
+    const dlBtn = document.getElementById('docPreviewDownloadBtn');
+
+    title.textContent = doc.name || 'Document';
+    const previewable = isPreviewable(doc);
+    frame.style.display = previewable ? 'block' : 'none';
+    fallback.style.display = previewable ? 'none' : 'block';
+    frame.src = previewable ? doc.url : 'about:blank';
+
+    openBtn.onclick = () => openDocFile(doc.url, doc.name, false);
+    dlBtn.onclick = () => openDocFile(doc.url, doc.name, true);
+
+    overlay.classList.add('open');
+  }
+
+  function closeDocPreview() {
+    const overlay = document.getElementById('docPreviewOverlay');
+    const frame = document.getElementById('docPreviewFrame');
+    if (frame) frame.src = 'about:blank';
+    if (overlay) overlay.classList.remove('open');
   }
 
   async function openDocFile(url, name = 'document', forceDownload = false) {
@@ -90,7 +138,8 @@
   function uploadFile(file, opts = {}) {
     // opts: { onProgress, liquidId, waveId, pctId }
     return new Promise((resolve, reject) => {
-      const fileRef = firebase.storage().ref().child('documents/' + Date.now() + '_' + file.name);
+      const storage = getStorageInstance();
+      const fileRef = storage.ref().child('documents/' + Date.now() + '_' + file.name);
       const task = fileRef.put(file);
 
       task.on(
@@ -136,11 +185,16 @@
         setTimeout(() => { progressEl.style.display = 'none'; }, 600);
         toast('✓ Fichier téléversé');
       })
-      .catch(() => {
+      .catch(error => {
         textEl.textContent = 'Glisse un fichier ici';
         zone.classList.remove('uploading');
         progressEl.style.display = 'none';
         toast('⚠ Erreur lors du téléversement');
+        reportError(
+          'Téléversement Firebase échoué',
+          error,
+          'Vérifie Firebase Storage (Rules + bucket). Règle minimale: allow read: if true; allow write: if request.auth != null;'
+        );
       });
   }
 
@@ -214,7 +268,7 @@
     empty.style.display = 'none';
     grid.innerHTML = filtered
       .map((doc, index) => `
-        <div class="doc-card" style="animation-delay:${index * 0.05}s">
+        <div class="doc-card ${doc.url ? 'doc-card-clickable' : ''}" ${doc.url ? `onclick="openDocPreview(${doc.id})"` : ''} style="animation-delay:${index * 0.05}s">
           <div class="doc-card-top">
             <div class="doc-card-icon">${DOC_ICONS[doc.type] || '📁'}</div>
             <span class="doc-type-badge">${DOC_LABELS[doc.type] || 'Autre'}</span>
@@ -222,10 +276,10 @@
           <div class="doc-card-name">${esc(doc.name)}</div>
           ${doc.note ? `<div class="doc-card-note">${esc(doc.note)}</div>` : ''}
           ${doc.url ? `<div class="doc-card-actions">
-            <a class="doc-card-link" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer" onclick="return openDocFile('${esc(doc.url)}','${esc(doc.name)}',false)">Ouvrir ↗</a>
-            <a class="doc-card-link doc-card-dl" href="${esc(doc.url)}" download="${esc(doc.name)}" rel="noopener noreferrer" onclick="return openDocFile('${esc(doc.url)}','${esc(doc.name)}',true)">⬇ Télécharger</a>
+            <a class="doc-card-link" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); openDocPreview(${doc.id}); return false;">Afficher</a>
+            <a class="doc-card-link doc-card-dl" href="${esc(doc.url)}" download="${esc(doc.name)}" rel="noopener noreferrer" onclick="event.stopPropagation(); return openDocFile('${esc(doc.url)}','${esc(doc.name)}',true)">⬇ Télécharger</a>
           </div>` : ''}
-          ${state.authToken ? `<button class="doc-del" onclick="deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
+          ${state.authToken ? `<button class="doc-del" onclick="event.stopPropagation(); deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
         </div>`)
       .join('');
   }
@@ -293,4 +347,6 @@
   window.saveDoc         = saveDoc;
   window.deleteDoc       = deleteDoc;
   window.openDocFile     = openDocFile;
+  window.openDocPreview  = openDocPreview;
+  window.closeDocPreview = closeDocPreview;
 })();

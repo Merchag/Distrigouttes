@@ -144,6 +144,27 @@
   </div>
 </div>
 
+<!-- MODAL: DOC PREVIEW -->
+<div class="overlay" id="docPreviewOverlay">
+  <div class="modal modal-doc-preview">
+    <div class="modal-header">
+      <h2 id="docPreviewTitle">Document</h2>
+      <button class="modal-x" onclick="closeDocPreview()">&times;</button>
+    </div>
+    <div class="doc-preview-body">
+      <iframe id="docPreviewFrame" class="doc-preview-frame" title="Aperçu document"></iframe>
+      <div class="doc-preview-fallback" id="docPreviewFallback" style="display:none;">
+        <p>Aperçu non disponible pour ce type de fichier.</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel2" onclick="closeDocPreview()">Fermer</button>
+      <button class="btn-cancel2" id="docPreviewOpenBtn">Ouvrir dans un onglet</button>
+      <button class="btn-save" id="docPreviewDownloadBtn">Télécharger</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: ENTRY -->
 <div class="overlay" id="entryOverlay">
   <div class="modal">
