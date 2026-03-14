@@ -61,13 +61,38 @@
 
     if (navigator.onLine) {
       if (forceDownload) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = name;
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        try {
+          // Pour les fichiers Supabase, utiliser fetch + blob pour un téléchargement plus fiable
+          const response = await fetch(url, { 
+            headers: { 'Accept': '*/*' },
+            mode: 'cors'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
+          }
+          
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = name || 'document';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Nettoyer après un délai
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+          toast('✓ Fichier télécharger');
+          return false;
+        } catch (error) {
+          console.error('Erreur téléchargement:', error);
+          toast('⚠ Erreur lors du téléchargement');
+          reportError('Téléchargement échoué', error, 'Vérifie que le fichier existe et que Supabase Storage est accessible');
+          return false;
+        }
       } else {
         window.open(url, '_blank', 'noopener,noreferrer');
       }
@@ -389,8 +414,8 @@
           <div class="doc-card-name">${esc(doc.name)}</div>
           ${doc.note ? `<div class="doc-card-note">${esc(doc.note)}</div>` : ''}
           ${doc.url ? `<div class="doc-card-actions">
-            <a class="doc-card-link" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); openDocPreview(${doc.id}); return false;">Afficher</a>
-            <a class="doc-card-link doc-card-dl" href="${esc(doc.url)}" download="${esc(doc.name)}" rel="noopener noreferrer" onclick="event.stopPropagation(); return openDocFile('${esc(doc.url)}','${esc(doc.name)}',true)">⬇ Télécharger</a>
+            <button class="doc-card-link" onclick="event.stopPropagation(); openDocPreview(${doc.id})">👁 Afficher</button>
+            <button class="doc-card-link doc-card-dl" onclick="event.stopPropagation(); openDocFile('${esc(doc.url)}','${esc(doc.name)}',true)">⬇ Télécharger</button>
           </div>` : ''}
           ${state.authToken ? `<button class="doc-del" onclick="event.stopPropagation(); deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
         </div>`)
