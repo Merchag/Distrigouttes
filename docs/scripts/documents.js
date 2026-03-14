@@ -146,7 +146,7 @@
           return {
             storagePath: f.name,
             url: data?.publicUrl || '',
-            fileName: f.name.split('_').slice(1).join('_') || f.name,
+            fileName: f.name,
             uploadedAt: f.updated_at
           };
         });
