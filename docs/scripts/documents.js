@@ -112,17 +112,31 @@
   }
 
   // ── SYNC WITH SUPABASE STORAGE ──
-  async function syncStorageDocuments() {
+  async function syncStorageDocuments(forceRefresh = false) {
     try {
-      if (!state.sb) return;
+      if (!state.sb) {
+        console.warn('Supabase non initialisé - impossible de synchroniser le storage');
+        return;
+      }
+      
+      console.log('[Sync] Synchronisation des documents Supabase...');
       
       // List all files in the documents bucket
       const { data: files, error } = await state.sb.storage
         .from(SUPABASE_BUCKET)
         .list('', { limit: 1000 });
 
-      if (error) throw error;
-      if (!files || files.length === 0) return;
+      if (error) {
+        console.error('[Sync] Erreur lors de la lecture du bucket:', error);
+        throw error;
+      }
+      
+      if (!files || files.length === 0) {
+        console.log('[Sync] Aucun fichier trouvé dans le bucket Supabase');
+        return;
+      }
+
+      console.log(`[Sync] ${files.length} fichiers trouvés dans le bucket`);
 
       // Create URLs for storage files
       const storageFiles = files
@@ -137,13 +151,46 @@
           };
         });
 
+      if (forceRefresh) {
+        // Si forceRefresh est true, on ignore les documents manuels et on utilise uniquement les fichiers du storage
+        const newDocs = storageFiles
+          .filter(f => f.url)
+          .map(f => {
+            const type = detectDocType(f.fileName);
+            return {
+              id: Date.now() + Math.random(),
+              name: f.fileName,
+              type: type,
+              url: f.url,
+              note: 'Stocké dans Supabase',
+              uploadedAt: f.uploadedAt,
+              fromStorage: true
+            };
+          });
+        
+        if (newDocs.length > 0) {
+          state.docs = newDocs;
+          state.storageDocsSynced = true;
+          console.log(`[Sync] ${newDocs.length} documents importés depuis le storage`);
+          
+          if (state.currentTab === 'docs') {
+            renderDocs();
+          }
+        }
+        return;
+      }
+
       // Add storage files that aren't in state.docs
       const updatedDocs = [...state.docs];
       let hasNew = false;
 
       for (const storageFile of storageFiles) {
-        // Check if this storage file is already in state.docs
-        const exists = updatedDocs.some(doc => doc.url === storageFile.url);
+        // Check if this storage file is already in state.docs (by comparing URLs or storage path)
+        const exists = updatedDocs.some(doc => 
+          doc.url === storageFile.url || 
+          doc.storagePath === storageFile.storagePath ||
+          doc.fromStorage
+        );
         
         if (!exists && storageFile.url) {
           // Create a new doc entry for this storage file
@@ -153,8 +200,10 @@
             name: storageFile.fileName,
             type: type,
             url: storageFile.url,
-            note: 'Auto-imported from storage',
-            uploadedAt: storageFile.uploadedAt
+            note: 'Stocké dans Supabase',
+            uploadedAt: storageFile.uploadedAt,
+            storagePath: storageFile.storagePath,
+            fromStorage: true
           });
           hasNew = true;
         }
@@ -163,14 +212,27 @@
       // Update state if there are new documents
       if (hasNew) {
         state.docs = updatedDocs;
+        state.storageDocsSynced = true;
+        console.log(`[Sync] ${updatedDocs.length} documents au total après synchro`);
         await app.data.pushData();
         // Re-render if we're on the docs tab
         if (state.currentTab === 'docs') {
           renderDocs();
         }
+      } else {
+        console.log('[Sync] Tous les documents du storage sont déjà présents');
+        state.storageDocsSynced = true;
       }
     } catch (error) {
-      console.error('Erreur lors de la synchronisation du storage:', error);
+      console.error('[Sync] Erreur lors de la synchronisation du storage:', error);
+      const errorMsg = error?.message || String(error);
+      if (errorMsg.includes('permission') || errorMsg.includes('forbidden') || errorMsg.includes('401')) {
+        reportError(
+          'Accès Supabase Storage refusé',
+          error,
+          'Vérifie les policies de lecture publiques sur le bucket "documents" dans Supabase > Storage > Policies'
+        );
+      }
       // Continue without failing - storage sync is not critical
     }
   }
@@ -333,11 +395,6 @@
           ${state.authToken ? `<button class="doc-del" onclick="event.stopPropagation(); deleteDoc(${doc.id})" title="Supprimer">✕</button>` : ''}
         </div>`)
       .join('');
-    
-    // Sync storage documents in background
-    if (app.documents && app.documents.syncStorageDocuments) {
-      setTimeout(() => app.documents.syncStorageDocuments(), 500);
-    }
   }
 
   function openDocModal() {

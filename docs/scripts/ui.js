@@ -37,7 +37,15 @@
       app.presentation.renderPres();
     }
 
-    if (id === 'docs') app.documents.renderDocs();
+    if (id === 'docs') {
+      app.documents.renderDocs();
+      // Sync storage documents immediately when switching to docs tab
+      if (app.documents && app.documents.syncStorageDocuments) {
+        app.documents.syncStorageDocuments(false).catch(err => {
+          console.error('Erreur lors de la synchro des documents:', err);
+        });
+      }
+    }
 
     requestAnimationFrame(() => document.getElementById('panel-' + id).classList.add('active'));
   }
