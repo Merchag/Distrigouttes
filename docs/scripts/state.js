@@ -23,6 +23,7 @@
     authUser: null,
     activeFilter: 'all',
     activeDocFilter: 'all',
+    sortOrder: 'asc',
     editingId: null,
     currentTab: 'pres',
     toastTimer: null

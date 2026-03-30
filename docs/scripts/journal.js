@@ -23,7 +23,12 @@
     if (state.activeFilter !== 'all') filtered = filtered.filter(entry => entry.tag === state.activeFilter);
     if (query) filtered = filtered.filter(entry => entry.title.toLowerCase().includes(query) || entry.body.toLowerCase().includes(query));
 
-    filtered.sort((left, right) => new Date(right.date) - new Date(left.date));
+    // Sort by date: ascending (oldest first) or descending (newest first)
+    filtered.sort((left, right) => {
+      const dateA = new Date(left.date);
+      const dateB = new Date(right.date);
+      return state.sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
     return filtered;
   }
 
@@ -89,6 +94,16 @@
     expand.classList.toggle('open', !collapsed);
     expand.querySelector('.ec-expand-arrow').style.transform = collapsed ? '' : 'rotate(180deg)';
     expand.childNodes[1].textContent = collapsed ? ' Lire la suite' : ' Réduire';
+  }
+
+  function toggleSortOrder() {
+    state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+    renderJournal();
+    const btn = document.getElementById('btnSortOrder');
+    if (btn) {
+      btn.textContent = state.sortOrder === 'asc' ? '📅 Plus vieux en premier' : '📅 Plus récent en premier';
+      btn.title = state.sortOrder === 'asc' ? 'Cliquer pour inverser: Plus récent en premier' : 'Cliquer pour inverser: Plus vieux en premier';
+    }
   }
 
   function openEntryModal(id = null) {
@@ -367,7 +382,8 @@
     openNoteDetail,
     closeNoteDetail,
     goToPreviousNote,
-    goToNextNote
+    goToNextNote,
+    toggleSortOrder
   };
   window.setFilter = setFilter;
   window.renderJournal = renderJournal;
@@ -381,4 +397,5 @@
   window.closeNoteDetail = closeNoteDetail;
   window.goToPreviousNote = goToPreviousNote;
   window.goToNextNote = goToNextNote;
+  window.toggleSortOrder = toggleSortOrder;
 })();

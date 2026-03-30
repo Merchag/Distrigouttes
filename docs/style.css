@@ -82,6 +82,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:Arial, 
 .fchip{padding:6px 13px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;background:none;color:var(--muted);transition:all .2s cubic-bezier(.34,1.56,.64,1);font-family:Arial, sans-serif;}
 .fchip:hover{border-color:var(--border2);color:var(--text);transform:translateY(-1px);}
 .fchip.active{background:var(--accent);color:var(--bg);border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(232,197,71,.25);}
+#btnSortOrder{background:rgba(79,158,248,.1);border-color:rgba(79,158,248,.25);color:var(--accent2);transition:all .2s;}
+#btnSortOrder:hover{background:rgba(79,158,248,.2);border-color:var(--accent2);}
 .entries-scroll{display:flex;flex-direction:column;gap:10px;flex:1;padding-bottom:90px;}
 .entry-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;border-left:3px solid transparent;transition:border-color .2s,transform .2s,box-shadow .2s;opacity:0;animation:cardIn .4s cubic-bezier(.22,1,.36,1) both;}
 .entry-card:hover{border-color:var(--border2);border-left-color:var(--accent);transform:translateX(3px);box-shadow:0 4px 20px rgba(0,0,0,.2);}
