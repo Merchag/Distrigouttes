@@ -3,11 +3,26 @@
   const { state } = app;
   const { toast, reportError } = app.utils;
   const LOCAL_CACHE_KEY = 'distrigouttes_snapshot_v1';
+  const SESSION_KEY = 'distrigouttes_sessionid';
   const TABLE_NAME = 'app_data';
   const SYNC_DEBOUNCE_MS = 2000; // Wait 2s before syncing to avoid rapid calls
 
   let syncDebounceTimer = null;
   let isOnline = navigator.onLine;
+  let sessionId = null;
+
+  // Generate unique session ID for anonymous users
+  function getOrCreateSessionId() {
+    if (!sessionId) {
+      let stored = localStorage.getItem(SESSION_KEY);
+      if (!stored) {
+        stored = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(SESSION_KEY, stored);
+      }
+      sessionId = stored;
+    }
+    return sessionId;
+  }
 
   function saveLocalSnapshot() {
     try {
@@ -44,6 +59,9 @@
       throw new Error('Supabase config missing');
     }
     state.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Get or create session ID
+    getOrCreateSessionId();
     
     // Monitor online/offline state
     window.addEventListener('online', () => { isOnline = true; toast('✓ Connecté'); });
@@ -105,10 +123,10 @@
           toast('⚠ Erreur de connexion Supabase');
         }
 
-        reportError('Connexion Supabase échouée', error, 'Vérifie les policies RLS, URL, clé anon et la connexion internet.');
+        reportError('Connexion Supabase échouée', error, 'Vérifie les policies RLS dans SUPABASE_SETUP.md, l\'URL, la clé anon et la connexion internet. Les lectures doivent être publiques, les écritures requièrent l\'authentification.');
         const msg = String((error && (error.code || error.message)) || '').toLowerCase();
-        if (msg.includes('permission') || msg.includes('forbidden') || msg.includes('row-level security')) {
-          reportError('Policy Supabase bloquante', error, 'Vérifie la policy SELECT publique sur public.app_data dans SUPABASE_SETUP.md.');
+        if (msg.includes('permission') || msg.includes('forbidden') || msg.includes('row-level security') || msg.includes('rls')) {
+          reportError('Policy Supabase bloquante', error, 'Vérifiez que la policy "public read app_data" existe pour les lectures publiques.');
         }
       }
     };
@@ -134,24 +152,46 @@
   }
 
   async function pushData() {
-    if (!state.authToken) return;
+    // Only sync if user is authenticated (required by RLS policy)
+    if (!state.authToken) {
+      // Still save to local cache for offline usage
+      saveLocalSnapshot();
+      return;
+    }
     
     // Debounce rapid successive calls - saves bandwidth and prevents conflicts
     clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(async () => {
       try {
+        // Show syncing indicator
+        const topbar = document.querySelector('.topbar-stat');
+        if (topbar) topbar.style.opacity = '0.6';
+        
         const { error } = await state.sb.from(TABLE_NAME).upsert({
           id: 'main',
           entries: state.entries,
           docs: state.docs,
           pres: state.pres,
-          cfg: state.cfg
+          cfg: state.cfg,
+          updated_at: new Date().toISOString()
         });
         if (error) throw error;
         saveLocalSnapshot();
-      } catch {
+        
+        // Show sync success
+        if (topbar) {
+          topbar.style.opacity = '1';
+          const dot = topbar.querySelector('.dot');
+          if (dot) {
+            dot.style.background = 'var(--green)';
+            dot.style.boxShadow = '0 0 0 5px rgba(95,212,160,.4)';
+          }
+        }
+        toast('✓ Synchronisé avec Supabase');
+      } catch (error) {
         toast('⚠ Erreur lors de la sauvegarde');
-        reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Supabase', 'Vérifie la policy UPDATE/INSERT sur app_data puis réessaie.');
+        if (topbar) topbar.style.opacity = '1';
+        reportError('Échec de sauvegarde', 'Impossible d\'écrire vers Supabase', 'Vous devez être authentifié pour modifier les notes. Connectez-vous d\'abord.');
       }
     }, SYNC_DEBOUNCE_MS);
   }
