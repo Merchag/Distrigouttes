@@ -5,6 +5,10 @@
   const { esc, toast } = app.utils;
   const { DOC_ICONS } = constants;
 
+  // Track current note detail and filtered list
+  let currentNoteDetailId = null;
+  let filteredEntriesForDetail = [];
+
   function setFilter(filter, btn) {
     state.activeFilter = filter;
     document.querySelectorAll('#panel-journal .fchip').forEach(chip => chip.classList.remove('active'));
@@ -12,7 +16,7 @@
     renderJournal();
   }
 
-  function renderJournal() {
+  function getFilteredAndSortedEntries() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     let filtered = [...state.entries];
 
@@ -20,6 +24,12 @@
     if (query) filtered = filtered.filter(entry => entry.title.toLowerCase().includes(query) || entry.body.toLowerCase().includes(query));
 
     filtered.sort((left, right) => new Date(right.date) - new Date(left.date));
+    return filtered;
+  }
+
+  function renderJournal() {
+    const filtered = getFilteredAndSortedEntries();
+    filteredEntriesForDetail = filtered;
 
     const container = document.getElementById('entriesScroll');
     if (!filtered.length) {
@@ -30,7 +40,7 @@
     container.innerHTML = filtered
       .map((entry, index) => {
         const date = new Date(entry.date + 'T12:00:00');
-        return `<div class="entry-card" id="ec-${entry.id}" style="animation-delay:${index * 0.05}s">
+        return `<div class="entry-card" id="ec-${entry.id}" onclick="openNoteDetail(${entry.id})" style="animation-delay:${index * 0.05}s;cursor:pointer;">
           <div class="ec-header">
             <div class="ec-left">
               <div class="ec-date"><span class="dd">${String(date.getDate()).padStart(2, '0')}</span><span class="mm">${MONTHS[date.getMonth()]}</span></div>
@@ -43,8 +53,8 @@
               </div>
             </div>
             ${state.authToken ? `<div class="ec-actions">
-              <button class="ec-btn edit" onclick="openEntryModal(${entry.id})" title="Modifier">✎</button>
-              <button class="ec-btn del" onclick="deleteEntry(${entry.id})" title="Supprimer">✕</button>
+              <button class="ec-btn edit" onclick="openEntryModal(${entry.id}); event.stopPropagation();" title="Modifier">✎</button>
+              <button class="ec-btn del" onclick="deleteEntry(${entry.id}); event.stopPropagation();" title="Supprimer">✕</button>
             </div>` : ''}
           </div>
           <div class="ec-body collapsed" id="body-${entry.id}">${esc(entry.body)}</div>
@@ -52,11 +62,11 @@
             const linked = (entry.linkedDocs || []).map(id => state.docs.find(d => d.id === id)).filter(Boolean);
             return linked.length
               ? `<div class="ec-linked-docs">${linked.map(doc =>
-                  `<a class="ec-doc-chip" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</a>`
+                  `<a class="ec-doc-chip" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</a>`
                 ).join('')}</div>`
               : '';
           })()}
-          <button class="ec-expand" id="exp-${entry.id}" onclick="toggleBody(${entry.id})"><span class="ec-expand-arrow">▼</span> Lire la suite</button>
+          <button class="ec-expand" id="exp-${entry.id}" onclick="toggleBody(${entry.id}); event.stopPropagation();"><span class="ec-expand-arrow">▼</span> Lire la suite</button>
         </div>`;
       })
       .join('');
@@ -119,7 +129,7 @@
         ? state.docs.map(doc =>
             `<button class="doc-link-chip${linkedIds.includes(doc.id) ? ' selected' : ''}" data-doc-id="${doc.id}" onclick="this.classList.toggle('selected')">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</button>`
           ).join('')
-        : `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">Aucun document disponible</span>`;
+        : `<span style="font-family:Arial, monospace;font-size:11px;color:var(--muted)">Aucun document disponible</span>`;
     }
 
     // Bind mini drop zone for uploading a new file and linking it
@@ -250,6 +260,101 @@
     }, 280);
   }
 
+  function openNoteDetail(id) {
+    currentNoteDetailId = id;
+    const entry = state.entries.find(e => e.id === id);
+    if (!entry) return;
+
+    const date = new Date(entry.date + 'T12:00:00');
+    const linked = (entry.linkedDocs || []).map(docId => state.docs.find(d => d.id === docId)).filter(Boolean);
+
+    // Get current index in filtered list
+    const currentIndex = filteredEntriesForDetail.findIndex(e => e.id === id);
+    const hasPrev = currentIndex > 0;
+    const hasNext = currentIndex < filteredEntriesForDetail.length - 1;
+
+    const docsHTML = linked.length
+      ? `<div class="note-detail-docs">
+          <div class="note-detail-docs-title">📎 Documents liés</div>
+          <div class="note-detail-docs-list">${linked.map(doc =>
+            `<a class="doc-link-chip" href="${esc(doc.url)}" target="_blank" rel="noopener noreferrer">${DOC_ICONS[doc.type] || '📁'} ${esc(doc.name)}</a>`
+          ).join('')}</div>
+        </div>`
+      : '';
+
+    const contentHTML = `
+      <div class="note-detail-header">
+        <div class="note-detail-date">
+          <span class="dd">${String(date.getDate()).padStart(2, '0')}</span>
+          <span class="mm">${MONTHS[date.getMonth()]}</span>
+        </div>
+        <div class="note-detail-info">
+          <h1>${esc(entry.title)}</h1>
+          <div class="note-detail-meta">
+            <span class="note-tag tag-${entry.tag}">${TAG_LABELS[entry.tag] || 'Autre'}</span>
+            <div class="note-progress">
+              <span>Avancement:</span>
+              <div class="note-progress-bar">
+                <div class="note-progress-fill" style="width:${entry.progress}%"></div>
+              </div>
+              <span>${entry.progress}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note-detail-body">${esc(entry.body)}</div>
+      ${docsHTML}
+    `;
+
+    document.getElementById('noteDetailContent').innerHTML = contentHTML;
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('notePrevBtn');
+    const nextBtn = document.getElementById('noteNextBtn');
+
+    prevBtn.disabled = !hasPrev;
+    nextBtn.disabled = !hasNext;
+
+    if (hasPrev) {
+      prevBtn.style.opacity = '1';
+      prevBtn.style.cursor = 'pointer';
+    } else {
+      prevBtn.style.opacity = '0.4';
+      prevBtn.style.cursor = 'not-allowed';
+    }
+
+    if (hasNext) {
+      nextBtn.style.opacity = '1';
+      nextBtn.style.cursor = 'pointer';
+    } else {
+      nextBtn.style.opacity = '0.4';
+      nextBtn.style.cursor = 'not-allowed';
+    }
+
+    document.getElementById('noteDetailOverlay').classList.add('open');
+  }
+
+  function closeNoteDetail() {
+    document.getElementById('noteDetailOverlay').classList.remove('open');
+    currentNoteDetailId = null;
+  }
+
+  function goToPreviousNote() {
+    if (!currentNoteDetailId) return;
+    const currentIndex = filteredEntriesForDetail.findIndex(e => e.id === currentNoteDetailId);
+    if (currentIndex > 0) {
+      openNoteDetail(filteredEntriesForDetail[currentIndex - 1].id);
+    }
+  }
+
+  function goToNextNote() {
+    if (!currentNoteDetailId) return;
+    const currentIndex = filteredEntriesForDetail.findIndex(e => e.id === currentNoteDetailId);
+    if (currentIndex < filteredEntriesForDetail.length - 1) {
+      openNoteDetail(filteredEntriesForDetail[currentIndex + 1].id);
+    }
+  }
+
   app.journal = {
     setFilter,
     renderJournal,
@@ -258,7 +363,11 @@
     closeEntryModal,
     pickTag,
     saveEntry,
-    deleteEntry
+    deleteEntry,
+    openNoteDetail,
+    closeNoteDetail,
+    goToPreviousNote,
+    goToNextNote
   };
   window.setFilter = setFilter;
   window.renderJournal = renderJournal;
@@ -268,4 +377,8 @@
   window.pickTag = pickTag;
   window.saveEntry = saveEntry;
   window.deleteEntry = deleteEntry;
+  window.openNoteDetail = openNoteDetail;
+  window.closeNoteDetail = closeNoteDetail;
+  window.goToPreviousNote = goToPreviousNote;
+  window.goToNextNote = goToNextNote;
 })();

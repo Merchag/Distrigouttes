@@ -300,6 +300,20 @@
   </div>
 </div>
 
+<!-- MODAL: NOTE DETAIL VIEW -->
+<div class="overlay" id="noteDetailOverlay">
+  <div class="modal modal-note-detail">
+    <div class="note-detail-container">
+      <button class="note-close-btn" onclick="closeNoteDetail()">&times;</button>
+      <div class="note-detail-content" id="noteDetailContent"></div>
+      <div class="note-detail-nav">
+        <button class="note-nav-btn prev" id="notePrevBtn" onclick="goToPreviousNote()" title="Note précédente">← Note précédente</button>
+        <button class="note-nav-btn next" id="noteNextBtn" onclick="goToNextNote()" title="Note suivante">Note suivante →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: LOGIN -->
 <div class="overlay" id="loginOverlay">
   <div class="modal modal-login">
