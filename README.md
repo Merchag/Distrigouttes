@@ -21,10 +21,6 @@ Ce site est le **blog de suivi du projet** permettant à l'équipe de:
 - 📊 Suivre l'avancement global du projet
 - 🌐 Synchroniser les données entre plusieurs ordinateurs en temps réel
 
-## ⚠️ Problèmes
-
-**Synchronisation avec le moteur Gecko impossible des données**
-
 ## ✨ Fonctionnalités Principales du Blog
 
 ### 📔 Journal des Notes
